@@ -5,6 +5,14 @@ import {
 
 export type Player = "black" | "white";
 
+/**
+ * The board point that receives one piece during the current turn.
+ * Coordinates follow the shared zero-based row/column convention.
+ */
+export interface PlacementTarget extends BoardCoordinate {
+  readonly kind: "supply-point" | "objective";
+}
+
 export interface PieceCounts {
   readonly black: number;
   readonly white: number;
@@ -38,7 +46,11 @@ export type PointState =
  */
 export interface TurnState {
   readonly activePlayer: Player;
-  readonly piecesPlaced: number;
+  readonly placements: readonly PlacementTarget[];
+  /**
+   * Supply Points consumed to support Objective placements this turn. This is
+   * distinct from Supply Points that appear as targets in placements.
+   */
   readonly usedSupplyPoints: readonly BoardCoordinate[];
 }
 
@@ -95,7 +107,7 @@ export function createInitialGameState(
     objectives: createPointStateMatrix(cellsPerSide),
     turn: {
       activePlayer: "black",
-      piecesPlaced: 0,
+      placements: [],
       usedSupplyPoints: [],
     },
   };
