@@ -44,7 +44,7 @@ The files under `src/` contain the application implementation. Do not document p
 ## Coding and naming conventions
 
 - Use TypeScript for application logic and keep compiler checks passing.
-- Follow the established formatting in nearby files: two-space indentation, single quotes in TypeScript, and no semicolons unless tooling or syntax requires them.
+- Follow the established formatting in nearby files: two-space indentation, double quotes in TypeScript, and semicolons.
 - Use `camelCase` for variables and functions, `PascalCase` for types and classes, and descriptive lowercase file names. Use kebab-case for multiword file names unless an introduced framework has a stronger convention.
 - Prefer explicit types at module boundaries and for game-domain data; allow local inference where the type is clear.
 - Keep DOM selectors, asset paths, and user-visible text intentional and accessible. Use semantic HTML and provide appropriate alternative text or ARIA attributes.
