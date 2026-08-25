@@ -62,16 +62,32 @@ body {
   fill: none;
   stroke: #667168;
   stroke-width: 0.025;
+  pointer-events: none;
 }
 
 .supply-point {
   fill: #17221b;
   stroke: #fffdf6;
   stroke-width: 0.025;
+  pointer-events: none;
 }
 
-.objective {
-  opacity: 0;
+.objective-target,
+.supply-point-target {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0.06;
+  pointer-events: all;
+}
+
+.objective-target:hover {
+  fill: rgb(74 116 87 / 14%);
+  stroke: #4a7457;
+}
+
+.supply-point-target:hover {
+  fill: rgb(74 116 87 / 16%);
+  stroke: #4a7457;
 }
 
 @media (max-width: 36rem) {
