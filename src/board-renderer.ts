@@ -22,7 +22,9 @@ export interface BoardSvgLayout {
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
-const viewBoxPadding = 0.2;
+const supplyPointMarkerRadius = 0.09;
+const supplyPointHitRadius = 0.3;
+const viewBoxPadding = 0.35;
 
 export function createBoardSvgLayout(
   geometry: BoardGeometry,
@@ -81,10 +83,12 @@ function createSvgElement<K extends keyof SVGElementTagNameMap>(
   return document.createElementNS(svgNamespace, tagName);
 }
 
-function setCoordinates(
+function setTargetMetadata(
   element: SVGElement,
   position: SvgPosition,
+  kind: "supply-point" | "objective",
 ): void {
+  element.dataset.kind = kind;
   element.dataset.row = String(position.row);
   element.dataset.column = String(position.column);
 }
@@ -104,6 +108,7 @@ export function renderBoard(geometry: BoardGeometry): SVGSVGElement {
     "viewBox",
     `${-viewBoxPadding} ${-viewBoxPadding} ${viewBoxSize} ${viewBoxSize}`,
   );
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
   const grid = createSvgElement("g");
   grid.classList.add("board-grid");
@@ -119,24 +124,34 @@ export function renderBoard(geometry: BoardGeometry): SVGSVGElement {
 
   svg.append(grid);
 
-  for (const position of layout.objectives) {
-    const objective = createSvgElement("circle");
-    objective.classList.add("objective");
-    objective.setAttribute("cx", String(position.x));
-    objective.setAttribute("cy", String(position.y));
-    objective.setAttribute("r", "0.09");
-    setCoordinates(objective, position);
-    svg.append(objective);
-  }
-
   for (const position of layout.supplyPoints) {
     const supplyPoint = createSvgElement("circle");
     supplyPoint.classList.add("supply-point");
     supplyPoint.setAttribute("cx", String(position.x));
     supplyPoint.setAttribute("cy", String(position.y));
-    supplyPoint.setAttribute("r", "0.09");
-    setCoordinates(supplyPoint, position);
+    supplyPoint.setAttribute("r", String(supplyPointMarkerRadius));
     svg.append(supplyPoint);
+  }
+
+  for (const position of layout.objectives) {
+    const target = createSvgElement("rect");
+    target.classList.add("objective-target");
+    target.setAttribute("x", String(position.x - 0.5));
+    target.setAttribute("y", String(position.y - 0.5));
+    target.setAttribute("width", "1");
+    target.setAttribute("height", "1");
+    setTargetMetadata(target, position, "objective");
+    svg.append(target);
+  }
+
+  for (const position of layout.supplyPoints) {
+    const target = createSvgElement("circle");
+    target.classList.add("supply-point-target");
+    target.setAttribute("cx", String(position.x));
+    target.setAttribute("cy", String(position.y));
+    target.setAttribute("r", String(supplyPointHitRadius));
+    setTargetMetadata(target, position, "supply-point");
+    svg.append(target);
   }
 
   return svg;
