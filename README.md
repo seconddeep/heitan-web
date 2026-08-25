@@ -28,7 +28,7 @@ The build output is written to `dist/`.
 
 ## Deployment
 
-Before deploying, make sure the Firebase CLI is logged in and connected to the `heitan` Firebase project (project ID: `heitan-cdc49`).
+Before deploying, make sure the Firebase CLI is logged in and connected to the `heitan-web` Firebase project (project ID: `heitan-web`).
 
 After creating a production build, deploy it with:
 
