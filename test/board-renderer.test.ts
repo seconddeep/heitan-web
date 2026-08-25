@@ -6,10 +6,9 @@ import {
   createBoardSvgLayout,
   renderBoard,
 } from "../src/board-renderer.ts";
-import { createBoardGeometry } from "../src/game/board-geometry.ts";
 
 describe.each([4, 7])("%i×%i board SVG layout", (cellsPerSide) => {
-  const layout = createBoardSvgLayout(createBoardGeometry(cellsPerSide));
+  const layout = createBoardSvgLayout(cellsPerSide);
 
   test("creates horizontal and vertical grid lines", () => {
     expect(layout.gridLines).toHaveLength((cellsPerSide + 1) * 2);
@@ -63,7 +62,7 @@ describe.each([4, 7])("%i×%i board SVG layout", (cellsPerSide) => {
 });
 
 describe.each([4, 7])("%i×%i rendered board", (cellsPerSide) => {
-  const svg = renderBoard(createBoardGeometry(cellsPerSide));
+  const svg = renderBoard(cellsPerSide);
   const supplyPointMarkers = Array.from(
     svg.querySelectorAll<SVGCircleElement>(".supply-point"),
   );
@@ -88,7 +87,7 @@ describe.each([4, 7])("%i×%i rendered board", (cellsPerSide) => {
       .toBe(true);
   });
 
-  test("maps targets to zero-based BoardGeometry coordinates", () => {
+  test("maps targets to zero-based board coordinates", () => {
     for (const [index, target] of supplyPointTargets.entries()) {
       const row = Math.floor(index / (cellsPerSide + 1));
       const column = index % (cellsPerSide + 1);

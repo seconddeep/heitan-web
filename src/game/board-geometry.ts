@@ -1,67 +1,64 @@
-export interface SupplyPoint {
-  readonly kind: "supply-point";
+export interface BoardCoordinate {
+  readonly row: number;
+  readonly column: number;
 }
 
-export interface Objective {
-  readonly kind: "objective";
-}
-
-export interface BoardGeometry {
-  readonly cellsPerSide: number;
-  readonly supplyPoints: readonly (readonly SupplyPoint[])[];
-  readonly objectives: readonly (readonly Objective[])[];
-}
-
-export function createBoardGeometry(cellsPerSide: number): BoardGeometry {
+export function validateBoardSize(cellsPerSide: number): void {
   if (!Number.isInteger(cellsPerSide) || cellsPerSide < 1) {
     throw new RangeError("Board size must be a positive integer");
   }
-
-  const supplyPoints = Array.from({ length: cellsPerSide + 1 }, () =>
-    Array.from(
-      { length: cellsPerSide + 1 },
-      (): SupplyPoint => ({
-        kind: "supply-point",
-      }),
-    ),
-  );
-
-  const objectives = Array.from({ length: cellsPerSide }, () =>
-    Array.from(
-      { length: cellsPerSide },
-      (): Objective => ({
-        kind: "objective",
-      }),
-    ),
-  );
-
-  return {
-    cellsPerSide,
-    supplyPoints,
-    objectives,
-  };
 }
 
-export function getConnectedSupplyPoints(
-  geometry: BoardGeometry,
+function createCoordinates(pointsPerSide: number): readonly BoardCoordinate[] {
+  return Array.from({ length: pointsPerSide ** 2 }, (_, index) => ({
+    row: Math.floor(index / pointsPerSide),
+    column: index % pointsPerSide,
+  }));
+}
+
+export function getSupplyPointCoordinates(
+  cellsPerSide: number,
+): readonly BoardCoordinate[] {
+  validateBoardSize(cellsPerSide);
+
+  return createCoordinates(cellsPerSide + 1);
+}
+
+export function getObjectiveCoordinates(
+  cellsPerSide: number,
+): readonly BoardCoordinate[] {
+  validateBoardSize(cellsPerSide);
+
+  return createCoordinates(cellsPerSide);
+}
+
+export function getConnectedSupplyPointCoordinates(
+  cellsPerSide: number,
   objectiveRow: number,
   objectiveColumn: number,
-): readonly [SupplyPoint, SupplyPoint, SupplyPoint, SupplyPoint] {
+): readonly [
+  BoardCoordinate,
+  BoardCoordinate,
+  BoardCoordinate,
+  BoardCoordinate,
+] {
+  validateBoardSize(cellsPerSide);
+
   if (
     !Number.isInteger(objectiveRow) ||
     !Number.isInteger(objectiveColumn) ||
     objectiveRow < 0 ||
     objectiveColumn < 0 ||
-    objectiveRow >= geometry.cellsPerSide ||
-    objectiveColumn >= geometry.cellsPerSide
+    objectiveRow >= cellsPerSide ||
+    objectiveColumn >= cellsPerSide
   ) {
     throw new RangeError("Objective coordinates must be within the board");
   }
 
   return [
-    geometry.supplyPoints[objectiveRow][objectiveColumn],
-    geometry.supplyPoints[objectiveRow][objectiveColumn + 1],
-    geometry.supplyPoints[objectiveRow + 1][objectiveColumn],
-    geometry.supplyPoints[objectiveRow + 1][objectiveColumn + 1],
+    { row: objectiveRow, column: objectiveColumn },
+    { row: objectiveRow, column: objectiveColumn + 1 },
+    { row: objectiveRow + 1, column: objectiveColumn },
+    { row: objectiveRow + 1, column: objectiveColumn + 1 },
   ];
 }

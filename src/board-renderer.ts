@@ -1,4 +1,8 @@
-import type { BoardGeometry } from "./game/board-geometry.ts";
+import {
+  getObjectiveCoordinates,
+  getSupplyPointCoordinates,
+  validateBoardSize,
+} from "./game/board-geometry.ts";
 
 export interface SvgPosition {
   readonly row: number;
@@ -26,51 +30,47 @@ const supplyPointMarkerRadius = 0.09;
 const supplyPointHitRadius = 0.3;
 const viewBoxPadding = 0.35;
 
-export function createBoardSvgLayout(
-  geometry: BoardGeometry,
-): BoardSvgLayout {
+export function createBoardSvgLayout(cellsPerSide: number): BoardSvgLayout {
+  validateBoardSize(cellsPerSide);
+
   const gridLines = Array.from(
-    { length: geometry.cellsPerSide + 1 },
+    { length: cellsPerSide + 1 },
     (_, coordinate): readonly [SvgGridLine, SvgGridLine] => [
       {
         x1: coordinate,
         y1: 0,
         x2: coordinate,
-        y2: geometry.cellsPerSide,
+        y2: cellsPerSide,
       },
       {
         x1: 0,
         y1: coordinate,
-        x2: geometry.cellsPerSide,
+        x2: cellsPerSide,
         y2: coordinate,
       },
     ],
   ).flat();
 
-  const supplyPoints = geometry.supplyPoints.flatMap((row, rowIndex) =>
-    row.map(
-      (_, columnIndex): SvgPosition => ({
-        row: rowIndex,
-        column: columnIndex,
-        x: columnIndex,
-        y: rowIndex,
-      }),
-    ),
+  const supplyPoints = getSupplyPointCoordinates(cellsPerSide).map(
+    ({ row, column }): SvgPosition => ({
+      row,
+      column,
+      x: column,
+      y: row,
+    }),
   );
 
-  const objectives = geometry.objectives.flatMap((row, rowIndex) =>
-    row.map(
-      (_, columnIndex): SvgPosition => ({
-        row: rowIndex,
-        column: columnIndex,
-        x: columnIndex + 0.5,
-        y: rowIndex + 0.5,
-      }),
-    ),
+  const objectives = getObjectiveCoordinates(cellsPerSide).map(
+    ({ row, column }): SvgPosition => ({
+      row,
+      column,
+      x: column + 0.5,
+      y: row + 0.5,
+    }),
   );
 
   return {
-    cellsPerSide: geometry.cellsPerSide,
+    cellsPerSide,
     gridLines,
     supplyPoints,
     objectives,
@@ -93,8 +93,8 @@ function setTargetMetadata(
   element.dataset.column = String(position.column);
 }
 
-export function renderBoard(geometry: BoardGeometry): SVGSVGElement {
-  const layout = createBoardSvgLayout(geometry);
+export function renderBoard(cellsPerSide: number): SVGSVGElement {
+  const layout = createBoardSvgLayout(cellsPerSide);
   const svg = createSvgElement("svg");
   const viewBoxSize = layout.cellsPerSide + viewBoxPadding * 2;
 
