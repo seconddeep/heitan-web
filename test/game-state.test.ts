@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, test } from "vitest";
 import { createInitialGameState } from "../src/game/game-state.ts";
 import type {
   GameState,
+  PlacementTarget,
   Player,
   PointState,
   TurnState,
@@ -53,9 +54,12 @@ describe("GameState type model", () => {
       ],
       turn: {
         activePlayer: "black",
-        piecesPlaced: 2,
+        placements: [
+          { kind: "supply-point", row: 1, column: 1 },
+          { kind: "objective", row: 0, column: 0 },
+        ],
         usedSupplyPoints: [
-          { row: 1, column: 1 },
+          { row: 0, column: 1 },
         ],
       },
     } satisfies GameState;
@@ -67,10 +71,27 @@ describe("GameState type model", () => {
     });
     expect(gameState.turn).toMatchObject({
       activePlayer: "black",
-      piecesPlaced: 2,
     });
+    expect(gameState.turn.placements).toHaveLength(2);
     expect(gameState.turn.usedSupplyPoints).toEqual([
-      { row: 1, column: 1 },
+      { row: 0, column: 1 },
+    ]);
+    expect(gameState.turn.placements).toEqual([
+      { kind: "supply-point", row: 1, column: 1 },
+      { kind: "objective", row: 0, column: 0 },
+    ]);
+  });
+
+  test("distinguishes Supply Point and Objective placement targets", () => {
+    const targets = [
+      { kind: "supply-point", row: 2, column: 3 },
+      { kind: "objective", row: 1, column: 2 },
+    ] as const satisfies readonly PlacementTarget[];
+
+    expectTypeOf(targets).toMatchTypeOf<readonly PlacementTarget[]>();
+    expect(targets).toEqual([
+      { kind: "supply-point", row: 2, column: 3 },
+      { kind: "objective", row: 1, column: 2 },
     ]);
   });
 
@@ -86,6 +107,9 @@ describe("GameState type model", () => {
     >();
     expectTypeOf<TurnState["usedSupplyPoints"]>().toEqualTypeOf<
       readonly BoardCoordinate[]
+    >();
+    expectTypeOf<TurnState["placements"]>().toEqualTypeOf<
+      readonly PlacementTarget[]
     >();
   });
 });
@@ -106,7 +130,7 @@ describe.each([3, 4, 7])(
       });
       expect(gameState.turn).toEqual({
         activePlayer: "black",
-        piecesPlaced: 0,
+        placements: [],
         usedSupplyPoints: [],
       });
     });
