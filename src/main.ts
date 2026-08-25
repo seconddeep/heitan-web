@@ -1,9 +1,7 @@
 import "./style.css";
 import { renderBoard } from "./board-renderer.ts";
-import { createBoardGeometry } from "./game/board-geometry.ts";
 
 const boardSize = 4;
-const geometry = createBoardGeometry(boardSize);
 const app = document.querySelector<HTMLDivElement>("#app");
 
 if (!app) {
@@ -26,4 +24,4 @@ if (!boardContainer) {
   throw new Error("Board container not found");
 }
 
-boardContainer.append(renderBoard(geometry));
+boardContainer.append(renderBoard(boardSize));

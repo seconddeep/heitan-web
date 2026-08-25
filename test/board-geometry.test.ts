@@ -1,86 +1,100 @@
 import { expect, test } from "vitest";
 
 import {
-  createBoardGeometry,
-  getConnectedSupplyPoints,
+  getConnectedSupplyPointCoordinates,
+  getObjectiveCoordinates,
+  getSupplyPointCoordinates,
+  validateBoardSize,
 } from "../src/game/board-geometry.ts";
 
-test("creates a 5x5 Supply Point grid for a 4x4 board", () => {
-  const geometry = createBoardGeometry(4);
+test("derives 5x5 Supply Point coordinates for a 4x4 board", () => {
+  const coordinates = getSupplyPointCoordinates(4);
 
-  expect(geometry.supplyPoints).toHaveLength(5);
-  for (const row of geometry.supplyPoints) {
-    expect(row).toHaveLength(5);
+  expect(coordinates).toHaveLength(25);
+  for (const row of [0, 1, 2, 3, 4]) {
+    expect(
+      coordinates.filter((coordinate) => coordinate.row === row),
+    ).toHaveLength(5);
   }
 });
 
-test("creates a 4x4 Objective grid for a 4x4 board", () => {
-  const geometry = createBoardGeometry(4);
+test("derives 4x4 Objective coordinates for a 4x4 board", () => {
+  const coordinates = getObjectiveCoordinates(4);
 
-  expect(geometry.objectives).toHaveLength(4);
-  for (const row of geometry.objectives) {
-    expect(row).toHaveLength(4);
+  expect(coordinates).toHaveLength(16);
+  for (const row of [0, 1, 2, 3]) {
+    expect(
+      coordinates.filter((coordinate) => coordinate.row === row),
+    ).toHaveLength(4);
   }
 });
 
-test("creates row and column grids for multiple board sizes", () => {
+test("derives row and column coordinates for multiple board sizes", () => {
   for (const cellsPerSide of [1, 3, 5]) {
-    const geometry = createBoardGeometry(cellsPerSide);
+    const supplyPoints = getSupplyPointCoordinates(cellsPerSide);
+    const objectives = getObjectiveCoordinates(cellsPerSide);
 
-    expect(geometry.supplyPoints).toHaveLength(cellsPerSide + 1);
-    expect(geometry.supplyPoints[0]).toHaveLength(cellsPerSide + 1);
-    expect(geometry.objectives).toHaveLength(cellsPerSide);
-    expect(geometry.objectives[0]).toHaveLength(cellsPerSide);
+    expect(supplyPoints).toHaveLength((cellsPerSide + 1) ** 2);
+    expect(supplyPoints.at(-1)).toEqual({
+      row: cellsPerSide,
+      column: cellsPerSide,
+    });
+    expect(objectives).toHaveLength(cellsPerSide ** 2);
+    expect(objectives.at(-1)).toEqual({
+      row: cellsPerSide - 1,
+      column: cellsPerSide - 1,
+    });
   }
 });
 
-test("resolves the four Supply Points connected to Objective(0,0)", () => {
-  const geometry = createBoardGeometry(4);
-  const connected = getConnectedSupplyPoints(geometry, 0, 0);
+test("derives the four Supply Points connected to Objective(0,0)", () => {
+  const connected = getConnectedSupplyPointCoordinates(4, 0, 0);
 
-  expect(connected[0]).toBe(geometry.supplyPoints[0][0]);
-  expect(connected[1]).toBe(geometry.supplyPoints[0][1]);
-  expect(connected[2]).toBe(geometry.supplyPoints[1][0]);
-  expect(connected[3]).toBe(geometry.supplyPoints[1][1]);
+  expect(connected).toEqual([
+    { row: 0, column: 0 },
+    { row: 0, column: 1 },
+    { row: 1, column: 0 },
+    { row: 1, column: 1 },
+  ]);
+  expect(connected).toHaveLength(4);
 });
 
-test("resolves the four Supply Points connected to Objective(1,0)", () => {
-  const geometry = createBoardGeometry(4);
-  const connected = getConnectedSupplyPoints(geometry, 1, 0);
+test("derives the four Supply Points connected to Objective(1,0)", () => {
+  const connected = getConnectedSupplyPointCoordinates(4, 1, 0);
 
-  expect(connected[0]).toBe(geometry.supplyPoints[1][0]);
-  expect(connected[1]).toBe(geometry.supplyPoints[1][1]);
-  expect(connected[2]).toBe(geometry.supplyPoints[2][0]);
-  expect(connected[3]).toBe(geometry.supplyPoints[2][1]);
-});
-
-test("does not store point identifiers or Ludii vertex indices", () => {
-  const geometry = createBoardGeometry(2);
-
-  expect(geometry.supplyPoints[0][0]).toEqual({ kind: "supply-point" });
-  expect(geometry.objectives[0][0]).toEqual({ kind: "objective" });
+  expect(connected).toEqual([
+    { row: 1, column: 0 },
+    { row: 1, column: 1 },
+    { row: 2, column: 0 },
+    { row: 2, column: 1 },
+  ]);
+  expect(connected).toHaveLength(4);
 });
 
 test("rejects Objective coordinates outside the board", () => {
-  const geometry = createBoardGeometry(4);
-
   for (const coordinate of [
     [-1, 0],
     [0, -1],
     [4, 0],
     [0, 4],
     [0.5, 0],
+    [0, 0.5],
   ]) {
     expect(() =>
-      getConnectedSupplyPoints(geometry, coordinate[0], coordinate[1]),
+      getConnectedSupplyPointCoordinates(4, coordinate[0], coordinate[1]),
     ).toThrow(new RangeError("Objective coordinates must be within the board"));
   }
 });
 
 test("rejects invalid board sizes", () => {
   for (const cellsPerSide of [0, -1, 1.5, Number.NaN]) {
-    expect(() => createBoardGeometry(cellsPerSide)).toThrow(
+    expect(() => validateBoardSize(cellsPerSide)).toThrow(
       new RangeError("Board size must be a positive integer"),
     );
+    expect(() => getSupplyPointCoordinates(cellsPerSide)).toThrow(RangeError);
+    expect(() => getObjectiveCoordinates(cellsPerSide)).toThrow(RangeError);
+    expect(() =>
+      getConnectedSupplyPointCoordinates(cellsPerSide, 0, 0),
+    ).toThrow(RangeError);
   }
 });
