@@ -1,4 +1,7 @@
-import type { BoardCoordinate } from "./board-geometry.ts";
+import {
+  validateBoardSize,
+  type BoardCoordinate,
+} from "./board-geometry.ts";
 
 export type Player = "black" | "white";
 
@@ -52,4 +55,48 @@ export interface GameState {
   readonly supplyPoints: readonly (readonly PointState[])[];
   readonly objectives: readonly (readonly PointState[])[];
   readonly turn: TurnState;
+}
+
+function createInitialPointState(): PointState {
+  return {
+    pieces: {
+      black: 0,
+      white: 0,
+    },
+    secured: false,
+    player: null,
+  };
+}
+
+function createPointStateMatrix(
+  pointsPerSide: number,
+): readonly (readonly PointState[])[] {
+  return Array.from({ length: pointsPerSide }, () =>
+    Array.from({ length: pointsPerSide }, () => createInitialPointState()),
+  );
+}
+
+export function createInitialGameState(
+  cellsPerSide: number,
+  piecesPerPlayer: number,
+): GameState {
+  validateBoardSize(cellsPerSide);
+
+  if (!Number.isSafeInteger(piecesPerPlayer) || piecesPerPlayer <= 0) {
+    throw new RangeError("Pieces per player must be a positive safe integer");
+  }
+
+  return {
+    remainingPieces: {
+      black: piecesPerPlayer,
+      white: piecesPerPlayer,
+    },
+    supplyPoints: createPointStateMatrix(cellsPerSide + 1),
+    objectives: createPointStateMatrix(cellsPerSide),
+    turn: {
+      activePlayer: "black",
+      piecesPlaced: 0,
+      usedSupplyPoints: [],
+    },
+  };
 }
