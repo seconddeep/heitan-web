@@ -1,5 +1,5 @@
 import "./style.css";
-import { renderGameState } from "./board-renderer.ts";
+import { createBoardSession } from "./board-interaction.ts";
 import { createInitialGameState } from "./game/game-state.ts";
 
 // Matches the canonical 4x4 option in heitan-ludii/games/Heitan.lud.
@@ -7,7 +7,7 @@ const boardConfiguration = {
   cellsPerSide: 4,
   piecesPerPlayer: 36,
 } as const;
-const initialState = createInitialGameState(
+const gameState = createInitialGameState(
   boardConfiguration.cellsPerSide,
   boardConfiguration.piecesPerPlayer,
 );
@@ -33,4 +33,4 @@ if (!boardContainer) {
   throw new Error("Board container not found");
 }
 
-renderGameState(boardContainer, initialState);
+createBoardSession(boardContainer, gameState);
