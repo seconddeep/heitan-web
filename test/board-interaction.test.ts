@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   createBoardSession,
   getPlacementTarget,
-  processPlacement,
+  processBoardInteraction,
 } from "../src/board-interaction.ts";
 import { renderGameState } from "../src/board-renderer.ts";
 import {
@@ -55,32 +55,60 @@ function clickTarget(
 
 function createRenderedSession(state = createInitialGameState(3, 12)) {
   const container = document.createElement("div");
+  document.body.append(container);
   const render = vi.fn(renderGameState);
   const session = createBoardSession(container, state, render);
+  sessions.push(session);
 
   return { container, render, session };
 }
 
-describe("placement processing", () => {
-  test("returns replacement state for a legal Supply Point", () => {
-    const initialState = createInitialGameState(3, 12);
+const sessions: ReturnType<typeof createBoardSession>[] = [];
 
-    const result = processPlacement(initialState, {
+afterEach(() => {
+  for (const session of sessions) {
+    session.disconnect();
+  }
+
+  sessions.length = 0;
+  document.body.replaceChildren();
+});
+
+function createMultipleSupportState(): GameState {
+  let state = createInitialGameState(3, 12);
+  state = replaceSupplyPoint(state, 1, 1, controlledSupplyPoint());
+  return replaceSupplyPoint(state, 1, 2, controlledSupplyPoint());
+}
+
+function createInteractionState(gameState: GameState) {
+  return {
+    gameState,
+    pendingSupportSelection: null,
+  };
+}
+
+describe("board interaction processing", () => {
+  test("applies a legal Supply Point without entering selection mode", () => {
+    const initialState = createInitialGameState(3, 12);
+    const current = createInteractionState(initialState);
+
+    const result = processBoardInteraction(current, {
       kind: "supply-point",
       row: 1,
       column: 2,
     });
 
-    expect(result).not.toBeNull();
-    expect(result).not.toBe(initialState);
-    expect(result?.supplyPoints[1][2].pieces).toEqual(["black"]);
-    expect(result?.remainingPieces.black).toBe(11);
-    expect(result?.turn.placements).toEqual([
+    expect(result).not.toBe(current);
+    expect(result.gameState).not.toBe(initialState);
+    expect(result.gameState.supplyPoints[1][2].pieces).toEqual(["black"]);
+    expect(result.gameState.remainingPieces.black).toBe(11);
+    expect(result.gameState.turn.placements).toEqual([
       { kind: "supply-point", row: 1, column: 2 },
     ]);
+    expect(result.pendingSupportSelection).toBeNull();
   });
 
-  test("returns null for an illegal Supply Point", () => {
+  test("returns the same interaction state for an illegal placement", () => {
     const initialState = replaceSupplyPoint(
       createInitialGameState(3, 12),
       1,
@@ -91,14 +119,15 @@ describe("placement processing", () => {
         player: "black",
       },
     );
+    const current = createInteractionState(initialState);
 
-    const result = processPlacement(initialState, {
+    const result = processBoardInteraction(current, {
       kind: "supply-point",
       row: 1,
       column: 2,
     });
 
-    expect(result).toBeNull();
+    expect(result).toBe(current);
     expect(initialState.supplyPoints[1][2].pieces).toEqual([
       "black",
       "black",
@@ -106,49 +135,58 @@ describe("placement processing", () => {
     ]);
   });
 
-  test("uses the sole eligible Supply Point for an Objective", () => {
-    const initialState = replaceSupplyPoint(
-      createInitialGameState(3, 12),
-      1,
-      1,
-      controlledSupplyPoint(),
-    );
+  test.each([
+    ["one", [{ row: 1, column: 1 }]],
+    [
+      "multiple",
+      [
+        { row: 1, column: 1 },
+        { row: 1, column: 2 },
+      ],
+    ],
+  ])("enters support selection with %s eligible candidate set", (_name, expected) => {
+    const initialState =
+      expected.length === 1
+        ? replaceSupplyPoint(
+            createInitialGameState(3, 12),
+            1,
+            1,
+            controlledSupplyPoint(),
+          )
+        : createMultipleSupportState();
+    const current = createInteractionState(initialState);
 
-    const result = processPlacement(initialState, {
+    const result = processBoardInteraction(current, {
       kind: "objective",
       row: 1,
       column: 1,
     });
 
-    expect(result).not.toBeNull();
-    expect(result?.objectives[1][1].pieces).toEqual(["black"]);
-    expect(result?.turn.usedSupplyPoints).toEqual([{ row: 1, column: 1 }]);
+    expect(result.gameState).toBe(initialState);
+    expect(result.pendingSupportSelection).toEqual({
+      objective: { kind: "objective", row: 1, column: 1 },
+      eligibleSupplyPoints: expected,
+    });
   });
 
-  test("returns null when an Objective has multiple eligible Supply Points", () => {
-    let initialState = createInitialGameState(3, 12);
-    initialState = replaceSupplyPoint(
-      initialState,
-      1,
-      1,
-      controlledSupplyPoint(),
-    );
-    initialState = replaceSupplyPoint(
-      initialState,
-      1,
-      2,
-      controlledSupplyPoint(),
+  test("applies the explicitly selected support", () => {
+    const initialState = createMultipleSupportState();
+    const pending = processBoardInteraction(
+      createInteractionState(initialState),
+      { kind: "objective", row: 1, column: 1 },
     );
 
-    const result = processPlacement(initialState, {
-      kind: "objective",
+    const result = processBoardInteraction(pending, {
+      kind: "supply-point",
       row: 1,
-      column: 1,
+      column: 2,
     });
 
-    expect(result).toBeNull();
-    expect(initialState.objectives[1][1].pieces).toEqual([]);
-    expect(initialState.turn.usedSupplyPoints).toEqual([]);
+    expect(result.gameState.objectives[1][1].pieces).toEqual(["black"]);
+    expect(result.gameState.turn.usedSupplyPoints).toEqual([
+      { row: 1, column: 2 },
+    ]);
+    expect(result.pendingSupportSelection).toBeNull();
   });
 });
 
@@ -253,44 +291,11 @@ describe("Supply Point interaction", () => {
 });
 
 describe("Objective interaction", () => {
-  test("uses the sole eligible supporting Supply Point", () => {
+  test("requires explicit selection of the sole eligible support", () => {
     const initialState = replaceSupplyPoint(
       createInitialGameState(3, 12),
       1,
       1,
-      controlledSupplyPoint(),
-    );
-    const { container, render, session } = createRenderedSession(initialState);
-
-    clickTarget(
-      container,
-      '.objective-target[data-row="1"][data-column="1"]',
-    );
-
-    const currentState = session.getGameState();
-    expect(currentState.objectives[1][1].pieces).toEqual(["black"]);
-    expect(currentState.remainingPieces.black).toBe(11);
-    expect(currentState.turn.placements).toEqual([
-      { kind: "objective", row: 1, column: 1 },
-    ]);
-    expect(currentState.turn.usedSupplyPoints).toEqual([
-      { row: 1, column: 1 },
-    ]);
-    expect(render).toHaveBeenCalledTimes(2);
-  });
-
-  test("does not choose among multiple eligible supporting Supply Points", () => {
-    let initialState = createInitialGameState(3, 12);
-    initialState = replaceSupplyPoint(
-      initialState,
-      1,
-      1,
-      controlledSupplyPoint(),
-    );
-    initialState = replaceSupplyPoint(
-      initialState,
-      1,
-      2,
       controlledSupplyPoint(),
     );
     const { container, render, session } = createRenderedSession(initialState);
@@ -305,7 +310,174 @@ describe("Objective interaction", () => {
     expect(session.getGameState().remainingPieces.black).toBe(12);
     expect(session.getGameState().turn.placements).toEqual([]);
     expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
-    expect(render).toHaveBeenCalledTimes(1);
+    expect(session.getPendingSupportSelection()).toEqual({
+      objective: { kind: "objective", row: 1, column: 1 },
+      eligibleSupplyPoints: [{ row: 1, column: 1 }],
+    });
+    expect(
+      container.querySelector(
+        '.eligible-support[data-row="1"][data-column="1"]',
+      ),
+    ).not.toBeNull();
+    expect(render).toHaveBeenCalledTimes(2);
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+
+    const currentState = session.getGameState();
+    expect(currentState).not.toBe(initialState);
+    expect(currentState.objectives[1][1].pieces).toEqual(["black"]);
+    expect(currentState.remainingPieces.black).toBe(11);
+    expect(currentState.turn.placements).toEqual([
+      { kind: "objective", row: 1, column: 1 },
+    ]);
+    expect(currentState.turn.usedSupplyPoints).toEqual([
+      { row: 1, column: 1 },
+    ]);
+    expect(session.getPendingSupportSelection()).toBeNull();
+    expect(container.querySelector(".eligible-support")).toBeNull();
+    expect(container.querySelector("[data-support-eligible]")).toBeNull();
+    expect(render).toHaveBeenCalledTimes(3);
+  });
+
+  test("enters selection mode and identifies only eligible supports", () => {
+    const initialState = createMultipleSupportState();
+    const { container, render, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(session.getGameState().objectives[1][1].pieces).toEqual([]);
+    expect(session.getGameState().remainingPieces.black).toBe(12);
+    expect(session.getGameState().turn.placements).toEqual([]);
+    expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
+    expect(session.getPendingSupportSelection()).toEqual({
+      objective: { kind: "objective", row: 1, column: 1 },
+      eligibleSupplyPoints: [
+        { row: 1, column: 1 },
+        { row: 1, column: 2 },
+      ],
+    });
+    expect(
+      Array.from(
+        container.querySelectorAll<SVGElement>(".eligible-support"),
+      ).map((target) => [target.dataset.row, target.dataset.column]),
+    ).toEqual([
+      ["1", "1"],
+      ["1", "2"],
+    ]);
+    expect(
+      container.querySelectorAll('[data-support-eligible="true"]'),
+    ).toHaveLength(2);
+    expect(
+      container.querySelector(
+        '.supply-point-target[data-row="2"][data-column="1"]',
+      )?.hasAttribute("data-support-eligible"),
+    ).toBe(false);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  test.each([
+    ["first", 1, 1],
+    ["second", 1, 2],
+  ])(
+    "applies the Objective with the %s eligible support",
+    (_name, row, column) => {
+      const initialState = createMultipleSupportState();
+      const { container, render, session } = createRenderedSession(initialState);
+
+      clickTarget(
+        container,
+        '.objective-target[data-row="1"][data-column="1"]',
+      );
+      clickTarget(
+        container,
+        `.supply-point-target[data-row="${row}"][data-column="${column}"]`,
+      );
+
+      const currentState = session.getGameState();
+      expect(currentState).not.toBe(initialState);
+      expect(currentState.objectives[1][1].pieces).toEqual(["black"]);
+      expect(currentState.remainingPieces.black).toBe(11);
+      expect(currentState.turn.placements).toEqual([
+        { kind: "objective", row: 1, column: 1 },
+      ]);
+      expect(currentState.turn.usedSupplyPoints).toEqual([{ row, column }]);
+      expect(session.getPendingSupportSelection()).toBeNull();
+      expect(container.querySelector(".eligible-support")).toBeNull();
+      expect(container.querySelector("[data-support-eligible]")).toBeNull();
+      expect(render).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  test("cancels selection from a non-eligible Supply Point", () => {
+    const initialState = createMultipleSupportState();
+    const { container, render, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="0"][data-column="0"]',
+    );
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(session.getGameState().objectives[1][1].pieces).toEqual([]);
+    expect(session.getGameState().remainingPieces.black).toBe(12);
+    expect(session.getGameState().turn.placements).toEqual([]);
+    expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
+    expect(session.getPendingSupportSelection()).toBeNull();
+    expect(container.querySelector(".eligible-support")).toBeNull();
+    expect(container.querySelector("[data-support-eligible]")).toBeNull();
+    expect(render).toHaveBeenCalledTimes(3);
+  });
+
+  test("cancels selection from another Objective without applying it", () => {
+    const initialState = createMultipleSupportState();
+    const { container, render, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+    clickTarget(
+      container,
+      '.objective-target[data-row="0"][data-column="0"]',
+    );
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(session.getGameState().objectives[1][1].pieces).toEqual([]);
+    expect(session.getGameState().objectives[0][0].pieces).toEqual([]);
+    expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
+    expect(session.getPendingSupportSelection()).toBeNull();
+    expect(container.querySelector(".eligible-support")).toBeNull();
+    expect(container.querySelector("[data-support-eligible]")).toBeNull();
+    expect(render).toHaveBeenCalledTimes(3);
+  });
+
+  test("does not handle selection clicks outside the board container", () => {
+    const initialState = createMultipleSupportState();
+    const { container, render, session } = createRenderedSession(initialState);
+    const outsideButton = document.createElement("button");
+    document.body.append(outsideButton);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+    outsideButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(session.getPendingSupportSelection()).not.toBeNull();
+    expect(container.querySelectorAll(".eligible-support")).toHaveLength(2);
+    expect(render).toHaveBeenCalledTimes(2);
   });
 });
 
