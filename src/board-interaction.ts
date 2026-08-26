@@ -4,7 +4,10 @@ import {
 } from "./board-renderer.ts";
 import type { BoardCoordinate } from "./game/board-geometry.ts";
 import type { GameState, PlacementTarget } from "./game/game-state.ts";
-import { applyPlacement } from "./game/placement-application.ts";
+import {
+  applyObjectivePlacement,
+  applySupplyPointPlacement,
+} from "./game/placement-application.ts";
 import { evaluatePlacement } from "./game/placement-legality.ts";
 
 type GameStateRenderer = (
@@ -104,7 +107,7 @@ export function processBoardInteraction(
       };
     }
 
-    const result = applyPlacement(
+    const result = applyObjectivePlacement(
       gameState,
       pendingSupportSelection.objective,
       { row: target.row, column: target.column },
@@ -142,7 +145,7 @@ export function processBoardInteraction(
     };
   }
 
-  const result = applyPlacement(gameState, target);
+  const result = applySupplyPointPlacement(gameState, target);
 
   return result.applied
     ? {
