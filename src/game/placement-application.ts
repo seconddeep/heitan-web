@@ -32,16 +32,13 @@ function coordinatesMatch(
   return first.row === second.row && first.column === second.column;
 }
 
-function incrementActivePlayerPiece(
+function appendActivePlayerPiece(
   point: PointState,
   activePlayer: GameState["turn"]["activePlayer"],
 ): PointState {
   return {
     ...point,
-    pieces: {
-      ...point.pieces,
-      [activePlayer]: point.pieces[activePlayer] + 1,
-    },
+    pieces: [...point.pieces, activePlayer],
   };
 }
 
@@ -92,7 +89,7 @@ export function applyPlacement(
   const targetRow = matrix[target.row];
   const updatedRow = [...targetRow];
 
-  updatedRow[target.column] = incrementActivePlayerPiece(
+  updatedRow[target.column] = appendActivePlayerPiece(
     targetRow[target.column],
     activePlayer,
   );

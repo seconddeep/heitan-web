@@ -1,3 +1,4 @@
+import { countPieces } from "./game-state.ts";
 import type { GameState, PointState } from "./game-state.ts";
 
 /**
@@ -12,7 +13,8 @@ export function resolvePointState(point: PointState): PointState {
     return point;
   }
 
-  const { black, white } = point.pieces;
+  const black = countPieces(point.pieces, "black");
+  const white = countPieces(point.pieces, "white");
 
   if (black === 3 && white === 3) {
     throw new Error("Cannot resolve an unsecured point with a 3-3 piece count");

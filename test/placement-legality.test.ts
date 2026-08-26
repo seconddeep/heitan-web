@@ -14,24 +14,24 @@ import {
 import type { BoardCoordinate } from "../src/game/board-geometry.ts";
 
 function pointState(
-  pieces: { readonly black?: number; readonly white?: number } = {},
+  counts: { readonly black?: number; readonly white?: number } = {},
   player: Player | null = null,
   secured = false,
 ): PointState {
-  const pieceCounts = {
-    black: pieces.black ?? 0,
-    white: pieces.white ?? 0,
-  };
+  const pieceStack: readonly Player[] = [
+    ...Array<Player>(counts.black ?? 0).fill("black"),
+    ...Array<Player>(counts.white ?? 0).fill("white"),
+  ];
 
   if (secured) {
     if (player === null) {
       throw new Error("A secured test point requires a player");
     }
 
-    return { pieces: pieceCounts, player, secured: true };
+    return { pieces: pieceStack, player, secured: true };
   }
 
-  return { pieces: pieceCounts, player, secured: false };
+  return { pieces: pieceStack, player, secured: false };
 }
 
 function withPoint(
@@ -145,6 +145,35 @@ describe("Supply Point placement legality", () => {
       kind: "supply-point",
     });
   });
+
+  test.each([
+    { stack: [] as const, legal: true },
+    { stack: ["black"] as const, legal: true },
+    { stack: ["white", "black", "white", "black"] as const, legal: true },
+    {
+      stack: ["black", "white", "black", "white", "black"] as const,
+      legal: false,
+    },
+  ])(
+    "uses the active player's derived count in mixed stack $stack",
+    ({ stack, legal }) => {
+      const state = withPoint(
+        createInitialGameState(3, 12),
+        "supply-point",
+        target,
+        { pieces: stack, player: null, secured: false },
+      );
+
+      if (legal) {
+        expect(evaluatePlacement(state, target)).toEqual({
+          legal: true,
+          kind: "supply-point",
+        });
+      } else {
+        expectIllegal(state, target, "player-point-limit-reached");
+      }
+    },
+  );
 
   test.each([
     { row: -1, column: 0 },

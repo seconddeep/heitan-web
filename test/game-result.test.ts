@@ -16,7 +16,10 @@ function pointState(
   player: Player | null = null,
   secured = false,
 ): PointState {
-  const pieces = { black, white };
+  const pieces: readonly Player[] = [
+    ...Array<Player>(black).fill("black"),
+    ...Array<Player>(white).fill("white"),
+  ];
 
   if (secured) {
     if (player === null) {
@@ -88,6 +91,19 @@ describe("calculateObjectiveScores", () => {
     expect(calculateObjectiveScores(state)).toEqual({
       black: { secured: 0, advantage: 1, pieces: 3 },
       white: { secured: 1, advantage: 0, pieces: 4 },
+    });
+  });
+
+  test("derives Objective totals from mixed stack order", () => {
+    const objective: PointState = {
+      pieces: ["white", "black", "white", "black", "black"],
+      secured: false,
+      player: "black",
+    };
+
+    expect(calculateObjectiveScores(gameState([[objective]]))).toEqual({
+      black: { secured: 0, advantage: 1, pieces: 3 },
+      white: { secured: 0, advantage: 0, pieces: 2 },
     });
   });
 });
