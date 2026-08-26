@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import {
   createBoardSession,
   getPlacementTarget,
+  processPlacement,
 } from "../src/board-interaction.ts";
 import { renderGameState } from "../src/board-renderer.ts";
 import {
@@ -59,6 +60,97 @@ function createRenderedSession(state = createInitialGameState(3, 12)) {
 
   return { container, render, session };
 }
+
+describe("placement processing", () => {
+  test("returns replacement state for a legal Supply Point", () => {
+    const initialState = createInitialGameState(3, 12);
+
+    const result = processPlacement(initialState, {
+      kind: "supply-point",
+      row: 1,
+      column: 2,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result).not.toBe(initialState);
+    expect(result?.supplyPoints[1][2].pieces).toEqual(["black"]);
+    expect(result?.remainingPieces.black).toBe(11);
+    expect(result?.turn.placements).toEqual([
+      { kind: "supply-point", row: 1, column: 2 },
+    ]);
+  });
+
+  test("returns null for an illegal Supply Point", () => {
+    const initialState = replaceSupplyPoint(
+      createInitialGameState(3, 12),
+      1,
+      2,
+      {
+        pieces: ["black", "black", "black"],
+        secured: false,
+        player: "black",
+      },
+    );
+
+    const result = processPlacement(initialState, {
+      kind: "supply-point",
+      row: 1,
+      column: 2,
+    });
+
+    expect(result).toBeNull();
+    expect(initialState.supplyPoints[1][2].pieces).toEqual([
+      "black",
+      "black",
+      "black",
+    ]);
+  });
+
+  test("uses the sole eligible Supply Point for an Objective", () => {
+    const initialState = replaceSupplyPoint(
+      createInitialGameState(3, 12),
+      1,
+      1,
+      controlledSupplyPoint(),
+    );
+
+    const result = processPlacement(initialState, {
+      kind: "objective",
+      row: 1,
+      column: 1,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.objectives[1][1].pieces).toEqual(["black"]);
+    expect(result?.turn.usedSupplyPoints).toEqual([{ row: 1, column: 1 }]);
+  });
+
+  test("returns null when an Objective has multiple eligible Supply Points", () => {
+    let initialState = createInitialGameState(3, 12);
+    initialState = replaceSupplyPoint(
+      initialState,
+      1,
+      1,
+      controlledSupplyPoint(),
+    );
+    initialState = replaceSupplyPoint(
+      initialState,
+      1,
+      2,
+      controlledSupplyPoint(),
+    );
+
+    const result = processPlacement(initialState, {
+      kind: "objective",
+      row: 1,
+      column: 1,
+    });
+
+    expect(result).toBeNull();
+    expect(initialState.objectives[1][1].pieces).toEqual([]);
+    expect(initialState.turn.usedSupplyPoints).toEqual([]);
+  });
+});
 
 describe("Supply Point interaction", () => {
   test("applies a legal click and re-renders from replacement state", () => {
