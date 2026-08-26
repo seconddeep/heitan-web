@@ -1,4 +1,5 @@
 import { isGameOver } from "./game-end.ts";
+import { countPieces } from "./game-state.ts";
 import type { GameState, Player } from "./game-state.ts";
 
 export interface ObjectiveScore {
@@ -43,8 +44,8 @@ export function calculateObjectiveScores(state: GameState): ObjectiveScores {
 
   for (const row of state.objectives) {
     for (const objective of row) {
-      blackPieces += objective.pieces.black;
-      whitePieces += objective.pieces.white;
+      blackPieces += countPieces(objective.pieces, "black");
+      whitePieces += countPieces(objective.pieces, "white");
 
       if (objective.player === "black") {
         if (objective.secured) {

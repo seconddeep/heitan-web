@@ -17,7 +17,10 @@ function pointState(
   player: Player | null = null,
   secured = false,
 ): PointState {
-  const pieces = { black, white };
+  const pieces: readonly Player[] = [
+    ...Array<Player>(black).fill("black"),
+    ...Array<Player>(white).fill("white"),
+  ];
 
   if (secured) {
     if (player === null) {
@@ -46,7 +49,10 @@ describe("resolvePointState", () => {
   ] as const)(
     "resolves $black-$white to player $player with secured=$secured",
     ({ black, white, player, secured }) => {
-      const pieces = { black, white };
+      const pieces: readonly Player[] = [
+        ...Array<Player>(black).fill("black"),
+        ...Array<Player>(white).fill("white"),
+      ];
       const point: PointState = {
         pieces,
         secured: false,
@@ -119,7 +125,7 @@ describe("resolvePointStates", () => {
     ]);
   });
 
-  test("does not mutate point counts or other GameState fields", () => {
+  test("does not mutate point stacks or other GameState fields", () => {
     const state = stateWithPointMatrices();
     const snapshot = structuredClone(state);
     const supplyPieces = state.supplyPoints.map((row) =>

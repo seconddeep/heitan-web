@@ -1,8 +1,12 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 
-import { createInitialGameState } from "../src/game/game-state.ts";
+import {
+  countPieces,
+  createInitialGameState,
+} from "../src/game/game-state.ts";
 import type {
   GameState,
+  PieceStack,
   PlacementTarget,
   Player,
   PointState,
@@ -20,24 +24,24 @@ describe("GameState type model", () => {
       supplyPoints: [
         [
           {
-            pieces: { black: 3, white: 0 },
+            pieces: ["black", "black", "black"],
             secured: false,
             player: "black",
           },
           {
-            pieces: { black: 0, white: 3 },
+            pieces: ["white", "white", "white"],
             secured: true,
             player: "white",
           },
         ],
         [
           {
-            pieces: { black: 0, white: 0 },
+            pieces: [],
             secured: false,
             player: null,
           },
           {
-            pieces: { black: 1, white: 0 },
+            pieces: ["black"],
             secured: false,
             player: "black",
           },
@@ -46,7 +50,7 @@ describe("GameState type model", () => {
       objectives: [
         [
           {
-            pieces: { black: 2, white: 1 },
+            pieces: ["black", "white", "black"],
             secured: false,
             player: null,
           },
@@ -97,6 +101,7 @@ describe("GameState type model", () => {
 
   test("uses shared point state and board coordinate types", () => {
     expectTypeOf<Player>().toEqualTypeOf<"black" | "white">();
+    expectTypeOf<PointState["pieces"]>().toEqualTypeOf<PieceStack>();
     expectTypeOf<PointState["secured"]>().toEqualTypeOf<boolean>();
     expectTypeOf<PointState["player"]>().toEqualTypeOf<Player | null>();
     expectTypeOf<GameState["supplyPoints"]>().toEqualTypeOf<
@@ -142,7 +147,7 @@ describe.each([3, 4, 7])(
         expect(row).toHaveLength(cellsPerSide + 1);
         for (const pointState of row) {
           expect(pointState).toEqual({
-            pieces: { black: 0, white: 0 },
+            pieces: [],
             secured: false,
             player: null,
           });
@@ -157,7 +162,7 @@ describe.each([3, 4, 7])(
         expect(row).toHaveLength(cellsPerSide);
         for (const pointState of row) {
           expect(pointState).toEqual({
-            pieces: { black: 0, white: 0 },
+            pieces: [],
             secured: false,
             player: null,
           });
@@ -167,8 +172,12 @@ describe.each([3, 4, 7])(
   },
 );
 
-test("creates independent rows, PointStates, and piece counts", () => {
+test("creates independent rows, PointStates, and piece stacks", () => {
   const gameState = createInitialGameState(3, 10);
+  const allPoints = [
+    ...gameState.supplyPoints.flat(),
+    ...gameState.objectives.flat(),
+  ];
 
   expect(gameState.supplyPoints[0]).not.toBe(gameState.supplyPoints[1]);
   expect(gameState.supplyPoints[0][0]).not.toBe(
@@ -185,6 +194,20 @@ test("creates independent rows, PointStates, and piece counts", () => {
   expect(gameState.supplyPoints[0][0]).not.toBe(
     gameState.objectives[0][0],
   );
+  expect(new Set(allPoints.map((point) => point.pieces)).size).toBe(
+    allPoints.length,
+  );
+});
+
+test("preserves different stack orders with the same player counts", () => {
+  const first: PieceStack = ["black", "white", "black"];
+  const second: PieceStack = ["black", "black", "white"];
+
+  expect(first).not.toEqual(second);
+  expect(countPieces(first, "black")).toBe(2);
+  expect(countPieces(first, "white")).toBe(1);
+  expect(countPieces(second, "black")).toBe(2);
+  expect(countPieces(second, "white")).toBe(1);
 });
 
 test("rejects invalid board sizes", () => {

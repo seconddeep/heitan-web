@@ -19,7 +19,10 @@ function pointState(
   player: Player | null = null,
   secured = false,
 ): PointState {
-  const pieces = { black, white };
+  const pieces: readonly Player[] = [
+    ...Array<Player>(black).fill("black"),
+    ...Array<Player>(white).fill("white"),
+  ];
 
   if (secured) {
     if (player === null) {
@@ -140,12 +143,12 @@ describe("completeTurn", () => {
     ]);
   });
 
-  test("preserves every board piece count and remaining piece count", () => {
+  test("preserves every board stack and remaining piece count", () => {
     const state = completableState("white");
-    const supplyPieceCounts = state.supplyPoints.map((row) =>
+    const supplyPieceStacks = state.supplyPoints.map((row) =>
       row.map((point) => point.pieces),
     );
-    const objectivePieceCounts = state.objectives.map((row) =>
+    const objectivePieceStacks = state.objectives.map((row) =>
       row.map((point) => point.pieces),
     );
     const nextState = completedState(completeTurn(state));
@@ -154,12 +157,12 @@ describe("completeTurn", () => {
     expect(nextState.remainingPieces).toEqual({ black: 7, white: 8 });
     nextState.supplyPoints.forEach((row, rowIndex) =>
       row.forEach((point, columnIndex) => {
-        expect(point.pieces).toBe(supplyPieceCounts[rowIndex][columnIndex]);
+        expect(point.pieces).toBe(supplyPieceStacks[rowIndex][columnIndex]);
       }),
     );
     nextState.objectives.forEach((row, rowIndex) =>
       row.forEach((point, columnIndex) => {
-        expect(point.pieces).toBe(objectivePieceCounts[rowIndex][columnIndex]);
+        expect(point.pieces).toBe(objectivePieceStacks[rowIndex][columnIndex]);
       }),
     );
   });

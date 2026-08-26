@@ -15,24 +15,24 @@ import {
 } from "../src/game/placement-application.ts";
 
 function pointState(
-  pieces: { readonly black?: number; readonly white?: number } = {},
+  counts: { readonly black?: number; readonly white?: number } = {},
   player: Player | null = null,
   secured = false,
 ): PointState {
-  const pieceCounts = {
-    black: pieces.black ?? 0,
-    white: pieces.white ?? 0,
-  };
+  const pieceStack: readonly Player[] = [
+    ...Array<Player>(counts.black ?? 0).fill("black"),
+    ...Array<Player>(counts.white ?? 0).fill("white"),
+  ];
 
   if (secured) {
     if (player === null) {
       throw new Error("A secured test point requires a player");
     }
 
-    return { pieces: pieceCounts, player, secured: true };
+    return { pieces: pieceStack, player, secured: true };
   }
 
-  return { pieces: pieceCounts, player, secured: false };
+  return { pieces: pieceStack, player, secured: false };
 }
 
 function withPoint(
@@ -124,7 +124,7 @@ describe("Supply Point placement application", () => {
     const nextState = appliedState(applyPlacement(state, target));
 
     expect(nextState.supplyPoints[1][1]).toEqual({
-      pieces: { black: 2, white: 2 },
+      pieces: ["black", "white", "white", "black"],
       player: "white",
       secured: false,
     });
@@ -155,6 +155,22 @@ describe("Supply Point placement application", () => {
       { row: 1, column: 1 },
     );
   });
+
+  test("appends sequential placements in bottom-to-top order", () => {
+    let state = createInitialGameState(3, 12);
+
+    state = appliedState(applyPlacement(state, target));
+    state = withTurn(state, { activePlayer: "white", placements: [] });
+    state = appliedState(applyPlacement(state, target));
+    state = withTurn(state, { activePlayer: "black", placements: [] });
+    state = appliedState(applyPlacement(state, target));
+
+    expect(state.supplyPoints[1][1].pieces).toEqual([
+      "black",
+      "white",
+      "black",
+    ]);
+  });
 });
 
 describe("Objective placement application", () => {
@@ -176,7 +192,7 @@ describe("Objective placement application", () => {
     );
 
     expect(nextState.objectives[1][1]).toEqual({
-      pieces: { black: 2, white: 2 },
+      pieces: ["black", "white", "white", "black"],
       player: "white",
       secured: false,
     });
@@ -212,7 +228,7 @@ describe("Objective placement application", () => {
       row: 1,
       column: 2,
     });
-    expect(nextState.objectives[1][1].pieces.black).toBe(1);
+    expect(nextState.objectives[1][1].pieces).toEqual(["black"]);
     expect(nextState.turn.placements).toEqual([target]);
     expect(nextState.remainingPieces.black).toBe(11);
     expect(nextState.objectives[1][1]).toMatchObject({
@@ -396,7 +412,7 @@ describe("illegal placement application", () => {
       { row: 0, column: 0 },
     ]);
     expect(nextState.supplyPoints[1][1]).toEqual({
-      pieces: { black: 3, white: 0 },
+      pieces: ["black", "black", "black"],
       player: "white",
       secured: false,
     });

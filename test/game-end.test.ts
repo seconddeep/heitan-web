@@ -46,15 +46,20 @@ function pointState(
   player: Player | null,
   secured = false,
 ): PointState {
+  const pieces: readonly Player[] = [
+    ...Array<Player>(black).fill("black"),
+    ...Array<Player>(white).fill("white"),
+  ];
+
   if (secured) {
     if (player === null) {
       throw new Error("A secured test point requires a player");
     }
 
-    return { pieces: { black, white }, secured: true, player };
+    return { pieces, secured: true, player };
   }
 
-  return { pieces: { black, white }, secured: false, player };
+  return { pieces, secured: false, player };
 }
 
 function completedState(result: TurnCompletionResult): GameState {

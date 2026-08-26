@@ -13,15 +13,23 @@ export interface PlacementTarget extends BoardCoordinate {
   readonly kind: "supply-point" | "objective";
 }
 
+/** Per-player counts for pieces remaining off the board. */
 export interface PieceCounts {
   readonly black: number;
   readonly white: number;
 }
 
+/** Pieces on a point, ordered from bottom to top (placement order). */
+export type PieceStack = readonly Player[];
+
+export function countPieces(stack: PieceStack, player: Player): number {
+  return stack.filter((piece) => piece === player).length;
+}
+
 /**
- * State for one board point. Piece counts include placements already made
+ * State for one board point. The piece stack includes placements already made
  * during the current turn, while player and secured remain unchanged until the
- * turn is completed.
+ * turn is completed. Array order is bottom to top, so new pieces are appended.
  *
  * For an unsecured Supply Point, player is the controlling player. For an
  * unsecured Objective, player is the player with Advantage. For a Secured
@@ -29,12 +37,12 @@ export interface PieceCounts {
  */
 export type PointState =
   | {
-      readonly pieces: PieceCounts;
+      readonly pieces: PieceStack;
       readonly secured: false;
       readonly player: Player | null;
     }
   | {
-      readonly pieces: PieceCounts;
+      readonly pieces: PieceStack;
       readonly secured: true;
       readonly player: Player;
     };
@@ -71,10 +79,7 @@ export interface GameState {
 
 function createInitialPointState(): PointState {
   return {
-    pieces: {
-      black: 0,
-      white: 0,
-    },
+    pieces: [],
     secured: false,
     player: null,
   };

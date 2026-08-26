@@ -5,6 +5,7 @@ import type {
   PlacementTarget,
   PointState,
 } from "./game-state.ts";
+import { countPieces } from "./game-state.ts";
 
 export type PlacementIllegalReason =
   | "invalid-target"
@@ -82,7 +83,7 @@ export function evaluatePlacement(
     return { legal: false, reason: "point-secured" };
   }
 
-  if (targetPoint.pieces[activePlayer] >= 3) {
+  if (countPieces(targetPoint.pieces, activePlayer) >= 3) {
     return { legal: false, reason: "player-point-limit-reached" };
   }
 
