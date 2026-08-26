@@ -1,13 +1,43 @@
-import { renderGameState } from "./board-renderer.ts";
+import {
+  renderGameState,
+  type BoardPresentationState,
+} from "./board-renderer.ts";
+import type { BoardCoordinate } from "./game/board-geometry.ts";
 import type { GameState, PlacementTarget } from "./game/game-state.ts";
 import { applyPlacement } from "./game/placement-application.ts";
 import { evaluatePlacement } from "./game/placement-legality.ts";
 
-type GameStateRenderer = (container: HTMLElement, state: GameState) => void;
+type GameStateRenderer = (
+  container: HTMLElement,
+  state: GameState,
+  presentation?: BoardPresentationState,
+) => void;
+
+type ObjectivePlacementTarget = PlacementTarget & {
+  readonly kind: "objective";
+};
+
+export interface PendingSupportSelection {
+  readonly objective: ObjectivePlacementTarget;
+  readonly eligibleSupplyPoints: readonly BoardCoordinate[];
+}
 
 export interface BoardSession {
   readonly getGameState: () => GameState;
+  readonly getPendingSupportSelection: () => PendingSupportSelection | null;
   readonly disconnect: () => void;
+}
+
+export interface BoardInteractionState {
+  readonly gameState: GameState;
+  readonly pendingSupportSelection: PendingSupportSelection | null;
+}
+
+function coordinatesMatch(
+  first: BoardCoordinate,
+  second: BoardCoordinate,
+): boolean {
+  return first.row === second.row && first.column === second.column;
 }
 
 function parseCoordinate(value: string | undefined): number | null {
@@ -53,30 +83,73 @@ export function getPlacementTarget(
   return { kind: expectedKind, row, column };
 }
 
-/** Processes a resolved target and returns replacement state when applied. */
-export function processPlacement(
-  state: GameState,
-  target: PlacementTarget,
-): GameState | null {
-  const legality = evaluatePlacement(state, target);
+/** Applies one resolved board interaction without depending on the DOM. */
+export function processBoardInteraction(
+  current: BoardInteractionState,
+  target: PlacementTarget | null,
+): BoardInteractionState {
+  const { gameState, pendingSupportSelection } = current;
+
+  if (pendingSupportSelection !== null) {
+    const selectedSupplyPointIsEligible =
+      target?.kind === "supply-point" &&
+      pendingSupportSelection.eligibleSupplyPoints.some((coordinate) =>
+        coordinatesMatch(coordinate, target),
+      );
+
+    if (!selectedSupplyPointIsEligible) {
+      return {
+        gameState,
+        pendingSupportSelection: null,
+      };
+    }
+
+    const result = applyPlacement(
+      gameState,
+      pendingSupportSelection.objective,
+      { row: target.row, column: target.column },
+    );
+
+    return result.applied
+      ? {
+          gameState: result.state,
+          pendingSupportSelection: null,
+        }
+      : current;
+  }
+
+  if (target === null) {
+    return current;
+  }
+
+  const legality = evaluatePlacement(gameState, target);
 
   if (!legality.legal) {
-    return null;
+    return current;
   }
 
-  if (
-    legality.kind === "objective" &&
-    legality.eligibleSupplyPoints.length !== 1
-  ) {
-    return null;
+  if (legality.kind === "objective") {
+    return {
+      gameState,
+      pendingSupportSelection: {
+        objective: {
+          kind: "objective",
+          row: target.row,
+          column: target.column,
+        },
+        eligibleSupplyPoints: legality.eligibleSupplyPoints,
+      },
+    };
   }
 
-  const result =
-    legality.kind === "supply-point"
-      ? applyPlacement(state, target)
-      : applyPlacement(state, target, legality.eligibleSupplyPoints[0]);
+  const result = applyPlacement(gameState, target);
 
-  return result.applied ? result.state : null;
+  return result.applied
+    ? {
+        gameState: result.state,
+        pendingSupportSelection: null,
+      }
+    : current;
 }
 
 /** Owns the current browser GameState and delegates clicks from the container. */
@@ -85,30 +158,40 @@ export function createBoardSession(
   initialState: GameState,
   render: GameStateRenderer = renderGameState,
 ): BoardSession {
-  let gameState = initialState;
+  let interactionState: BoardInteractionState = {
+    gameState: initialState,
+    pendingSupportSelection: null,
+  };
+
+  const renderCurrentState = (): void => {
+    render(container, interactionState.gameState, {
+      eligibleSupplyPoints:
+        interactionState.pendingSupportSelection?.eligibleSupplyPoints,
+    });
+  };
 
   const handleClick = (event: MouseEvent): void => {
     const target = getPlacementTarget(event.target);
+    const nextInteractionState = processBoardInteraction(
+      interactionState,
+      target,
+    );
 
-    if (target === null) {
+    if (nextInteractionState === interactionState) {
       return;
     }
 
-    const nextState = processPlacement(gameState, target);
-
-    if (nextState === null) {
-      return;
-    }
-
-    gameState = nextState;
-    render(container, gameState);
+    interactionState = nextInteractionState;
+    renderCurrentState();
   };
 
   container.addEventListener("click", handleClick);
-  render(container, gameState);
+  renderCurrentState();
 
   return {
-    getGameState: () => gameState,
+    getGameState: () => interactionState.gameState,
+    getPendingSupportSelection: () =>
+      interactionState.pendingSupportSelection,
     disconnect: () => container.removeEventListener("click", handleClick),
   };
 }

@@ -1,6 +1,7 @@
 import {
   getObjectiveCoordinates,
   getSupplyPointCoordinates,
+  type BoardCoordinate,
   validateBoardSize,
 } from "./game/board-geometry.ts";
 import { countPieces } from "./game/game-state.ts";
@@ -25,6 +26,10 @@ export interface BoardSvgLayout {
   readonly gridLines: readonly SvgGridLine[];
   readonly supplyPoints: readonly SvgPosition[];
   readonly objectives: readonly SvgPosition[];
+}
+
+export interface BoardPresentationState {
+  readonly eligibleSupplyPoints?: readonly BoardCoordinate[];
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
@@ -176,8 +181,18 @@ function validateStateDimensions(state: GameState): number {
   return cellsPerSide;
 }
 
-/** Renders a fresh SVG projection of the supplied immutable GameState. */
-export function renderBoard(state: GameState): SVGSVGElement {
+function coordinatesMatch(
+  first: BoardCoordinate,
+  second: BoardCoordinate,
+): boolean {
+  return first.row === second.row && first.column === second.column;
+}
+
+/** Renders a fresh SVG projection of GameState plus transient presentation. */
+export function renderBoard(
+  state: GameState,
+  presentation: BoardPresentationState = {},
+): SVGSVGElement {
   const cellsPerSide = validateStateDimensions(state);
   const layout = createBoardSvgLayout(cellsPerSide);
   const svg = createSvgElement("svg");
@@ -253,6 +268,16 @@ export function renderBoard(state: GameState): SVGSVGElement {
     target.setAttribute("cy", String(position.y));
     target.setAttribute("r", String(supplyPointHitRadius));
     setCoordinateMetadata(target, position, "supply-point");
+
+    if (
+      presentation.eligibleSupplyPoints?.some((coordinate) =>
+        coordinatesMatch(coordinate, position),
+      )
+    ) {
+      target.classList.add("eligible-support");
+      target.dataset.supportEligible = "true";
+    }
+
     targetLayer.append(target);
   }
 
@@ -299,6 +324,10 @@ export function renderGameStatus(state: GameState): HTMLElement {
 export function renderGameState(
   container: HTMLElement,
   state: GameState,
+  presentation: BoardPresentationState = {},
 ): void {
-  container.replaceChildren(renderGameStatus(state), renderBoard(state));
+  container.replaceChildren(
+    renderGameStatus(state),
+    renderBoard(state, presentation),
+  );
 }

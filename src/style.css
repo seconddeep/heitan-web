@@ -137,6 +137,12 @@ body {
   stroke: #4a7457;
 }
 
+.supply-point-target.eligible-support {
+  fill: rgb(191 132 37 / 22%);
+  stroke: #bf8425;
+  stroke-width: 0.1;
+}
+
 @media (max-width: 36rem) {
   .app-shell {
     padding: 2rem 1rem;
