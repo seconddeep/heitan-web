@@ -3,6 +3,8 @@ import {
   getSupplyPointCoordinates,
   validateBoardSize,
 } from "./game/board-geometry.ts";
+import { countPieces } from "./game/game-state.ts";
+import type { GameState, Player, PointState } from "./game/game-state.ts";
 
 export interface SvgPosition {
   readonly row: number;
@@ -28,7 +30,12 @@ export interface BoardSvgLayout {
 const svgNamespace = "http://www.w3.org/2000/svg";
 const supplyPointMarkerRadius = 0.09;
 const supplyPointHitRadius = 0.3;
-const viewBoxPadding = 0.35;
+const pieceRadius = 0.24;
+const pieceStackStep = 0.1;
+// A legal point can hold five pieces (3 for one player and 2 for the other).
+// The padding contains a row-0 stack plus a small allowance for its stroke.
+const viewBoxPadding = 0.66;
+const placementsPerTurn = 3;
 
 export function createBoardSvgLayout(cellsPerSide: number): BoardSvgLayout {
   validateBoardSize(cellsPerSide);
@@ -83,7 +90,7 @@ function createSvgElement<K extends keyof SVGElementTagNameMap>(
   return document.createElementNS(svgNamespace, tagName);
 }
 
-function setTargetMetadata(
+function setCoordinateMetadata(
   element: SVGElement,
   position: SvgPosition,
   kind: "supply-point" | "objective",
@@ -93,7 +100,85 @@ function setTargetMetadata(
   element.dataset.column = String(position.column);
 }
 
-export function renderBoard(cellsPerSide: number): SVGSVGElement {
+function getPointState(
+  state: GameState,
+  position: SvgPosition,
+  kind: "supply-point" | "objective",
+): PointState {
+  return kind === "supply-point"
+    ? state.supplyPoints[position.row][position.column]
+    : state.objectives[position.row][position.column];
+}
+
+function appendPointPieces(
+  layer: SVGGElement,
+  position: SvgPosition,
+  kind: "supply-point" | "objective",
+  point: PointState,
+): void {
+  const totalPieceCount = point.pieces.length;
+
+  if (totalPieceCount === 0) {
+    return;
+  }
+
+  const blackPieceCount = countPieces(point.pieces, "black");
+  const whitePieceCount = countPieces(point.pieces, "white");
+  const stack = createSvgElement("g");
+  stack.classList.add("piece-stack");
+  stack.dataset.count = String(totalPieceCount);
+  stack.dataset.blackCount = String(blackPieceCount);
+  stack.dataset.whiteCount = String(whitePieceCount);
+  stack.setAttribute(
+    "aria-label",
+    `${blackPieceCount} black pieces and ${whitePieceCount} white pieces`,
+  );
+  setCoordinateMetadata(stack, position, kind);
+
+  // Draw from the bottom upward. Later SVG children paint on top, so each
+  // upper disc overlaps the disc immediately below it, matching a physical
+  // stack viewed from above.
+  for (const [stackIndex, player] of point.pieces.entries()) {
+    const piece = createSvgElement("circle");
+    piece.classList.add("piece", `${player}-piece`);
+    piece.setAttribute("cx", String(position.x));
+    piece.setAttribute(
+      "cy",
+      String(position.y - stackIndex * pieceStackStep),
+    );
+    piece.setAttribute("r", String(pieceRadius));
+    piece.dataset.player = player;
+    piece.dataset.stackIndex = String(stackIndex);
+    stack.append(piece);
+  }
+
+  layer.append(stack);
+}
+
+function validateStateDimensions(state: GameState): number {
+  const cellsPerSide = state.objectives.length;
+  validateBoardSize(cellsPerSide);
+
+  const hasSquareObjectives = state.objectives.every(
+    (row) => row.length === cellsPerSide,
+  );
+  const expectedSupplyPointsPerSide = cellsPerSide + 1;
+  const hasSquareSupplyPoints =
+    state.supplyPoints.length === expectedSupplyPointsPerSide &&
+    state.supplyPoints.every(
+      (row) => row.length === expectedSupplyPointsPerSide,
+    );
+
+  if (!hasSquareObjectives || !hasSquareSupplyPoints) {
+    throw new RangeError("GameState board matrices must match the board size");
+  }
+
+  return cellsPerSide;
+}
+
+/** Renders a fresh SVG projection of the supplied immutable GameState. */
+export function renderBoard(state: GameState): SVGSVGElement {
+  const cellsPerSide = validateStateDimensions(state);
   const layout = createBoardSvgLayout(cellsPerSide);
   const svg = createSvgElement("svg");
   const viewBoxSize = layout.cellsPerSide + viewBoxPadding * 2;
@@ -122,26 +207,43 @@ export function renderBoard(cellsPerSide: number): SVGSVGElement {
     grid.append(line);
   }
 
-  svg.append(grid);
+  const markerLayer = createSvgElement("g");
+  markerLayer.classList.add("supply-point-marker-layer");
+  const pieceLayer = createSvgElement("g");
+  pieceLayer.classList.add("piece-layer");
+  const targetLayer = createSvgElement("g");
+  targetLayer.classList.add("hit-target-layer");
 
   for (const position of layout.supplyPoints) {
-    const supplyPoint = createSvgElement("circle");
-    supplyPoint.classList.add("supply-point");
-    supplyPoint.setAttribute("cx", String(position.x));
-    supplyPoint.setAttribute("cy", String(position.y));
-    supplyPoint.setAttribute("r", String(supplyPointMarkerRadius));
-    svg.append(supplyPoint);
+    const point = getPointState(state, position, "supply-point");
+
+    const marker = createSvgElement("circle");
+    marker.classList.add("supply-point");
+    marker.setAttribute("cx", String(position.x));
+    marker.setAttribute("cy", String(position.y));
+    marker.setAttribute("r", String(supplyPointMarkerRadius));
+    markerLayer.append(marker);
+
+    appendPointPieces(
+      pieceLayer,
+      position,
+      "supply-point",
+      point,
+    );
   }
 
   for (const position of layout.objectives) {
+    const point = getPointState(state, position, "objective");
+    appendPointPieces(pieceLayer, position, "objective", point);
+
     const target = createSvgElement("rect");
     target.classList.add("objective-target");
     target.setAttribute("x", String(position.x - 0.5));
     target.setAttribute("y", String(position.y - 0.5));
     target.setAttribute("width", "1");
     target.setAttribute("height", "1");
-    setTargetMetadata(target, position, "objective");
-    svg.append(target);
+    setCoordinateMetadata(target, position, "objective");
+    targetLayer.append(target);
   }
 
   for (const position of layout.supplyPoints) {
@@ -150,9 +252,53 @@ export function renderBoard(cellsPerSide: number): SVGSVGElement {
     target.setAttribute("cx", String(position.x));
     target.setAttribute("cy", String(position.y));
     target.setAttribute("r", String(supplyPointHitRadius));
-    setTargetMetadata(target, position, "supply-point");
-    svg.append(target);
+    setCoordinateMetadata(target, position, "supply-point");
+    targetLayer.append(target);
   }
 
+  svg.append(grid, markerLayer, pieceLayer, targetLayer);
+
   return svg;
+}
+
+function capitalize(player: Player): string {
+  return `${player[0].toUpperCase()}${player.slice(1)}`;
+}
+
+export function renderGameStatus(state: GameState): HTMLElement {
+  const status = document.createElement("section");
+  status.classList.add("game-status");
+  status.setAttribute("aria-label", "Current game status");
+
+  const activePlayer = document.createElement("p");
+  activePlayer.classList.add("active-player-status");
+  activePlayer.textContent = `${capitalize(state.turn.activePlayer)} to move`;
+
+  const details = document.createElement("div");
+  details.classList.add("game-status-details");
+
+  const blackRemaining = document.createElement("span");
+  blackRemaining.classList.add("remaining-pieces", "remaining-black");
+  blackRemaining.textContent = `Black: ${state.remainingPieces.black}`;
+
+  const whiteRemaining = document.createElement("span");
+  whiteRemaining.classList.add("remaining-pieces", "remaining-white");
+  whiteRemaining.textContent = `White: ${state.remainingPieces.white}`;
+
+  const placementCount = document.createElement("span");
+  placementCount.classList.add("placement-count");
+  placementCount.textContent = `Placements: ${state.turn.placements.length} / ${placementsPerTurn}`;
+
+  details.append(blackRemaining, whiteRemaining, placementCount);
+  status.append(activePlayer, details);
+
+  return status;
+}
+
+/** Replaces the prior projection so no visual state survives a re-render. */
+export function renderGameState(
+  container: HTMLElement,
+  state: GameState,
+): void {
+  container.replaceChildren(renderGameStatus(state), renderBoard(state));
 }
