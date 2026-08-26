@@ -51,6 +51,27 @@ body {
   box-shadow: 0 1rem 2.5rem rgb(43 48 38 / 10%);
 }
 
+.game-status {
+  margin-bottom: 1.25rem;
+  color: #39463d;
+}
+
+.active-player-status {
+  margin: 0 0 0.65rem;
+  color: #17221b;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.game-status-details {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1rem;
+  font-size: 0.9rem;
+}
+
 .heitan-board {
   display: block;
   width: 100%;
@@ -72,11 +93,37 @@ body {
   pointer-events: none;
 }
 
+.supply-point-marker-layer,
+.piece-layer {
+  pointer-events: none;
+}
+
+.piece {
+  stroke: #59635c;
+  stroke-width: 0.025;
+}
+
+.black-piece {
+  fill: #17221b;
+}
+
+.white-piece {
+  fill: #fffdf6;
+}
+
 .objective-target,
 .supply-point-target {
   fill: transparent;
   stroke: transparent;
   stroke-width: 0.06;
+  pointer-events: all;
+}
+
+.hit-target-layer {
+  pointer-events: none;
+}
+
+.hit-target-layer > * {
   pointer-events: all;
 }
 
