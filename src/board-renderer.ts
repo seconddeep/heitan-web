@@ -35,7 +35,6 @@ export interface BoardPresentationState {
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
-const supplyPointMarkerRadius = 0.09;
 const supplyPointHitRadius = 0.3;
 const pieceRadius = 0.24;
 const pieceStackStep = 0.1;
@@ -224,8 +223,6 @@ export function renderBoard(
     grid.append(line);
   }
 
-  const markerLayer = createSvgElement("g");
-  markerLayer.classList.add("supply-point-marker-layer");
   const pieceLayer = createSvgElement("g");
   pieceLayer.classList.add("piece-layer");
   const targetLayer = createSvgElement("g");
@@ -233,13 +230,6 @@ export function renderBoard(
 
   for (const position of layout.supplyPoints) {
     const point = getPointState(state, position, "supply-point");
-
-    const marker = createSvgElement("circle");
-    marker.classList.add("supply-point");
-    marker.setAttribute("cx", String(position.x));
-    marker.setAttribute("cy", String(position.y));
-    marker.setAttribute("r", String(supplyPointMarkerRadius));
-    markerLayer.append(marker);
 
     appendPointPieces(
       pieceLayer,
@@ -283,7 +273,7 @@ export function renderBoard(
     targetLayer.append(target);
   }
 
-  svg.append(grid, markerLayer, pieceLayer, targetLayer);
+  svg.append(grid, pieceLayer, targetLayer);
 
   return svg;
 }

@@ -108,10 +108,9 @@ describe.each([4, 7])("%i by %i rendered board", (cellsPerSide) => {
     expect(svg.getAttribute("preserveAspectRatio")).toBe("xMidYMid meet");
   });
 
-  test("renders separate markers and coordinate hit targets", () => {
-    expect(svg.querySelectorAll(".supply-point")).toHaveLength(
-      (cellsPerSide + 1) ** 2,
-    );
+  test("renders coordinate hit targets without Supply Point markers", () => {
+    expect(svg.querySelector(".supply-point")).toBeNull();
+    expect(svg.querySelector(".supply-point-marker-layer")).toBeNull();
     expect(svg.querySelectorAll(".supply-point-target")).toHaveLength(
       (cellsPerSide + 1) ** 2,
     );
@@ -234,10 +233,10 @@ describe("Supply Point rendering", () => {
   };
   const svg = renderBoard(state);
 
-  test("keeps an empty Supply marker free of pieces", () => {
+  test("keeps an empty Supply Point unmarked and free of pieces", () => {
     expect(
       svg.querySelector('.supply-point[cx="0"][cy="0"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       svg.querySelector(selector("piece-stack", "supply-point", 0, 0)),
     ).toBeNull();

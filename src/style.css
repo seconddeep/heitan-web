@@ -125,14 +125,6 @@ body {
   pointer-events: none;
 }
 
-.supply-point {
-  fill: #17221b;
-  stroke: #fffdf6;
-  stroke-width: 0.025;
-  pointer-events: none;
-}
-
-.supply-point-marker-layer,
 .piece-layer {
   pointer-events: none;
 }
