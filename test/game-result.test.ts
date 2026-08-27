@@ -63,8 +63,8 @@ describe("calculateObjectiveScores", () => {
     ]);
 
     expect(calculateObjectiveScores(state)).toEqual({
-      black: { secured: 1, advantage: 1, pieces: 9 },
-      white: { secured: 1, advantage: 1, pieces: 10 },
+      black: { secured: 1, advantage: 1, advantagePieces: 2 },
+      white: { secured: 1, advantage: 1, advantagePieces: 2 },
     });
   });
 
@@ -78,19 +78,25 @@ describe("calculateObjectiveScores", () => {
     ]);
 
     expect(calculateObjectiveScores(state)).toEqual({
-      black: { secured: 1, advantage: 0, pieces: 6 },
-      white: { secured: 1, advantage: 0, pieces: 6 },
+      black: { secured: 1, advantage: 0, advantagePieces: 0 },
+      white: { secured: 1, advantage: 0, advantagePieces: 0 },
     });
   });
 
-  test("counts pieces on unsecured and secured Objectives", () => {
+  test("counts only a player's own pieces on their Advantage Objectives", () => {
     const state = gameState([
-      [pointState(2, 1, "black"), pointState(1, 3, "white", true)],
+      [
+        pointState(2, 1, "black"),
+        pointState(1, 2, "white"),
+        pointState(3, 1, "black", true),
+        pointState(1, 3, "white", true),
+        pointState(2, 2),
+      ],
     ]);
 
     expect(calculateObjectiveScores(state)).toEqual({
-      black: { secured: 0, advantage: 1, pieces: 3 },
-      white: { secured: 1, advantage: 0, pieces: 4 },
+      black: { secured: 1, advantage: 1, advantagePieces: 2 },
+      white: { secured: 1, advantage: 1, advantagePieces: 2 },
     });
   });
 
@@ -102,8 +108,8 @@ describe("calculateObjectiveScores", () => {
     };
 
     expect(calculateObjectiveScores(gameState([[objective]]))).toEqual({
-      black: { secured: 0, advantage: 1, pieces: 3 },
-      white: { secured: 0, advantage: 0, pieces: 2 },
+      black: { secured: 0, advantage: 1, advantagePieces: 3 },
+      white: { secured: 0, advantage: 0, advantagePieces: 0 },
     });
   });
 });
@@ -159,7 +165,7 @@ describe("calculateGameResult", () => {
       ],
     },
   ] as const)(
-    "$winner wins on Advantage despite fewer Objective pieces",
+    "$winner wins on Advantage before a tied third score",
     ({ winner, objectives }) => {
       const result = calculateGameResult(gameState(objectives));
 
@@ -174,8 +180,8 @@ describe("calculateGameResult", () => {
       }
 
       const opponent = winner === "black" ? "white" : "black";
-      expect(result.scores[winner].pieces).toBeLessThan(
-        result.scores[opponent].pieces,
+      expect(result.scores[winner].advantagePieces).toBe(
+        result.scores[opponent].advantagePieces,
       );
     },
   );
@@ -183,14 +189,14 @@ describe("calculateGameResult", () => {
   test.each([
     {
       winner: "black",
-      objectives: [[pointState(2, 1), pointState(1, 1)]],
+      objectives: [[pointState(2, 1, "black"), pointState(0, 1, "white")]],
     },
     {
       winner: "white",
-      objectives: [[pointState(1, 2), pointState(1, 1)]],
+      objectives: [[pointState(1, 2, "white"), pointState(1, 0, "black")]],
     },
   ] as const)(
-    "$winner wins on Objective pieces after higher-priority ties",
+    "$winner wins on own-Advantage Objective pieces after higher-priority ties",
     ({ winner, objectives }) => {
       expect(calculateGameResult(gameState(objectives))).toMatchObject({
         finished: true,
@@ -213,8 +219,8 @@ describe("calculateGameResult", () => {
       winner: null,
       reason: "draw",
       scores: {
-        black: { secured: 1, advantage: 1, pieces: 7 },
-        white: { secured: 1, advantage: 1, pieces: 7 },
+        black: { secured: 1, advantage: 1, advantagePieces: 2 },
+        white: { secured: 1, advantage: 1, advantagePieces: 2 },
       },
     });
   });

@@ -362,7 +362,7 @@ export function renderFinalResult(state: GameState): HTMLElement | null {
   for (const [label, key] of [
     ["Secured Objectives", "secured"],
     ["Advantage Objectives", "advantage"],
-    ["Objective Pieces", "pieces"],
+    ["Pieces on Advantage Objectives", "advantagePieces"],
   ] as const) {
     const row = document.createElement("tr");
     row.innerHTML = `

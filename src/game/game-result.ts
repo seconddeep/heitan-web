@@ -5,7 +5,8 @@ import type { GameState, Player } from "./game-state.ts";
 export interface ObjectiveScore {
   readonly secured: number;
   readonly advantage: number;
-  readonly pieces: number;
+  /** Own pieces on unsecured Objectives where this player has Advantage. */
+  readonly advantagePieces: number;
 }
 
 export interface ObjectiveScores {
@@ -44,20 +45,19 @@ export function calculateObjectiveScores(state: GameState): ObjectiveScores {
 
   for (const row of state.objectives) {
     for (const objective of row) {
-      blackPieces += countPieces(objective.pieces, "black");
-      whitePieces += countPieces(objective.pieces, "white");
-
       if (objective.player === "black") {
         if (objective.secured) {
           blackSecured += 1;
         } else {
           blackAdvantage += 1;
+          blackPieces += countPieces(objective.pieces, "black");
         }
       } else if (objective.player === "white") {
         if (objective.secured) {
           whiteSecured += 1;
         } else {
           whiteAdvantage += 1;
+          whitePieces += countPieces(objective.pieces, "white");
         }
       }
     }
@@ -67,12 +67,12 @@ export function calculateObjectiveScores(state: GameState): ObjectiveScores {
     black: {
       secured: blackSecured,
       advantage: blackAdvantage,
-      pieces: blackPieces,
+      advantagePieces: blackPieces,
     },
     white: {
       secured: whiteSecured,
       advantage: whiteAdvantage,
-      pieces: whitePieces,
+      advantagePieces: whitePieces,
     },
   };
 }
@@ -97,8 +97,8 @@ export function calculateGameResult(state: GameState): GameResult {
       reason: "advantage-objectives" as const,
     },
     {
-      black: black.pieces,
-      white: white.pieces,
+      black: black.advantagePieces,
+      white: white.advantagePieces,
       reason: "objective-pieces" as const,
     },
   ];

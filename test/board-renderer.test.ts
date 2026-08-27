@@ -427,9 +427,9 @@ test.each([
     ],
     ["Advantage Objectives", "0", "0"],
     [
-      "Objective Pieces",
-      player === "black" ? "3" : "0",
-      player === "white" ? "3" : "0",
+      "Pieces on Advantage Objectives",
+      "0",
+      "0",
     ],
   ]);
 });
