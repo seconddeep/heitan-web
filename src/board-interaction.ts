@@ -3,7 +3,7 @@ import {
   type BoardPresentationState,
 } from "./board-renderer.ts";
 import type { BoardCoordinate } from "./game/board-geometry.ts";
-import { isGameOver } from "./game/game-end.ts";
+import { completeTurn, isGameOver } from "./game/game-flow.ts";
 import type { GameState, PlacementTarget } from "./game/game-state.ts";
 import {
   applyObjectivePlacement,
@@ -13,7 +13,6 @@ import {
   evaluateObjectivePlacement,
   evaluateSupplyPointPlacement,
 } from "./game/placement-legality.ts";
-import { completeTurn } from "./game/turn-completion.ts";
 
 type GameStateRenderer = (
   container: HTMLElement,

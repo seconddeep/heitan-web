@@ -7,7 +7,7 @@ import {
   type Player,
   type PointState,
 } from "../src/game/game-state.ts";
-import { completeTurn } from "../src/game/turn-completion.ts";
+import { completeTurn } from "../src/game/game-flow.ts";
 
 function pointState(
   black: number,

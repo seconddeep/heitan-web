@@ -4,7 +4,7 @@ import {
   type BoardCoordinate,
   validateBoardSize,
 } from "./game/board-geometry.ts";
-import { isGameOver } from "./game/game-end.ts";
+import { isGameOver } from "./game/game-flow.ts";
 import { calculateGameResult } from "./game/game-result.ts";
 import { countPieces } from "./game/game-state.ts";
 import type { GameState, Player, PointState } from "./game/game-state.ts";
