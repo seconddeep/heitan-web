@@ -5,7 +5,6 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   createBoardSession,
   getPlacementTarget,
-  processBoardInteraction,
 } from "../src/board-interaction.ts";
 import { renderGameState } from "../src/board-renderer.ts";
 import {
@@ -79,116 +78,6 @@ function createMultipleSupportState(): GameState {
   state = replaceSupplyPoint(state, 1, 1, controlledSupplyPoint());
   return replaceSupplyPoint(state, 1, 2, controlledSupplyPoint());
 }
-
-function createInteractionState(gameState: GameState) {
-  return {
-    gameState,
-    pendingSupportSelection: null,
-  };
-}
-
-describe("board interaction processing", () => {
-  test("applies a legal Supply Point without entering selection mode", () => {
-    const initialState = createInitialGameState(3, 12);
-    const current = createInteractionState(initialState);
-
-    const result = processBoardInteraction(current, {
-      kind: "supply-point",
-      row: 1,
-      column: 2,
-    });
-
-    expect(result).not.toBe(current);
-    expect(result.gameState).not.toBe(initialState);
-    expect(result.gameState.supplyPoints[1][2].pieces).toEqual(["black"]);
-    expect(result.gameState.remainingPieces.black).toBe(11);
-    expect(result.gameState.turn.placements).toEqual([
-      { kind: "supply-point", row: 1, column: 2 },
-    ]);
-    expect(result.pendingSupportSelection).toBeNull();
-  });
-
-  test("returns the same interaction state for an illegal placement", () => {
-    const initialState = replaceSupplyPoint(
-      createInitialGameState(3, 12),
-      1,
-      2,
-      {
-        pieces: ["black", "black", "black"],
-        secured: false,
-        player: "black",
-      },
-    );
-    const current = createInteractionState(initialState);
-
-    const result = processBoardInteraction(current, {
-      kind: "supply-point",
-      row: 1,
-      column: 2,
-    });
-
-    expect(result).toBe(current);
-    expect(initialState.supplyPoints[1][2].pieces).toEqual([
-      "black",
-      "black",
-      "black",
-    ]);
-  });
-
-  test.each([
-    ["one", [{ row: 1, column: 1 }]],
-    [
-      "multiple",
-      [
-        { row: 1, column: 1 },
-        { row: 1, column: 2 },
-      ],
-    ],
-  ])("enters support selection with %s eligible candidate set", (_name, expected) => {
-    const initialState =
-      expected.length === 1
-        ? replaceSupplyPoint(
-            createInitialGameState(3, 12),
-            1,
-            1,
-            controlledSupplyPoint(),
-          )
-        : createMultipleSupportState();
-    const current = createInteractionState(initialState);
-
-    const result = processBoardInteraction(current, {
-      kind: "objective",
-      row: 1,
-      column: 1,
-    });
-
-    expect(result.gameState).toBe(initialState);
-    expect(result.pendingSupportSelection).toEqual({
-      objective: { kind: "objective", row: 1, column: 1 },
-      eligibleSupplyPoints: expected,
-    });
-  });
-
-  test("applies the explicitly selected support", () => {
-    const initialState = createMultipleSupportState();
-    const pending = processBoardInteraction(
-      createInteractionState(initialState),
-      { kind: "objective", row: 1, column: 1 },
-    );
-
-    const result = processBoardInteraction(pending, {
-      kind: "supply-point",
-      row: 1,
-      column: 2,
-    });
-
-    expect(result.gameState.objectives[1][1].pieces).toEqual(["black"]);
-    expect(result.gameState.turn.usedSupplyPoints).toEqual([
-      { row: 1, column: 2 },
-    ]);
-    expect(result.pendingSupportSelection).toBeNull();
-  });
-});
 
 describe("Supply Point interaction", () => {
   test("applies a legal click and re-renders from replacement state", () => {

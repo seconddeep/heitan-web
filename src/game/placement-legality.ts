@@ -2,7 +2,6 @@ import { getConnectedSupplyPointCoordinates } from "./board-geometry.ts";
 import type { BoardCoordinate } from "./board-geometry.ts";
 import type {
   GameState,
-  PlacementTarget,
   PointState,
 } from "./game-state.ts";
 import { countPieces } from "./game-state.ts";
@@ -22,11 +21,7 @@ export type ObjectivePlacementIllegalReason =
   | CommonPlacementIllegalReason
   | "no-eligible-supply-point";
 
-export type PlacementIllegalReason =
-  | SupplyPointPlacementIllegalReason
-  | ObjectivePlacementIllegalReason;
-
-type IllegalPlacementResult<Reason extends PlacementIllegalReason> = {
+type IllegalPlacementResult<Reason extends string> = {
   readonly legal: false;
   readonly reason: Reason;
 };
@@ -41,21 +36,6 @@ export type ObjectivePlacementLegalityResult =
       readonly eligibleSupplyPoints: readonly BoardCoordinate[];
     }
   | IllegalPlacementResult<ObjectivePlacementIllegalReason>;
-
-export type PlacementLegalityResult =
-  | {
-      readonly legal: true;
-      readonly kind: "supply-point";
-    }
-  | {
-      readonly legal: true;
-      readonly kind: "objective";
-      readonly eligibleSupplyPoints: readonly BoardCoordinate[];
-    }
-  | {
-      readonly legal: false;
-      readonly reason: PlacementIllegalReason;
-    };
 
 function getTargetPoint(
   points: readonly (readonly PointState[])[],
@@ -173,25 +153,4 @@ export function evaluateObjectivePlacement(
     legal: true,
     eligibleSupplyPoints,
   };
-}
-
-export function evaluatePlacement(
-  state: GameState,
-  target: PlacementTarget,
-): PlacementLegalityResult {
-  if (target.kind === "supply-point") {
-    const result = evaluateSupplyPointPlacement(state, target);
-
-    return result.legal ? { legal: true, kind: "supply-point" } : result;
-  }
-
-  const result = evaluateObjectivePlacement(state, target);
-
-  return result.legal
-    ? {
-        legal: true,
-        kind: "objective",
-        eligibleSupplyPoints: result.eligibleSupplyPoints,
-      }
-    : result;
 }
