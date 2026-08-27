@@ -156,6 +156,108 @@ describe.each([4, 7])("%i by %i rendered board", (cellsPerSide) => {
   });
 });
 
+describe("legal placement target rendering", () => {
+  test.each([4, 7])(
+    "derives legal Supply Point targets for a %i by %i board",
+    (cellsPerSide) => {
+      const svg = renderBoard(createInitialGameState(cellsPerSide, 12));
+
+      expect(
+        svg.querySelectorAll(
+          '.supply-point-target[data-placement-legal="true"]',
+        ),
+      ).toHaveLength((cellsPerSide + 1) ** 2);
+      expect(
+        svg.querySelectorAll(
+          '.legal-placement-indicator[data-kind="supply-point"][r="0.09"]',
+        ),
+      ).toHaveLength((cellsPerSide + 1) ** 2);
+      expect(svg.querySelectorAll(".objective-target.legal-placement"))
+        .toHaveLength(0);
+    },
+  );
+
+  test("derives legal Objectives from their eligible supporting Supply Points", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      supplyPoints: replacePoint(
+        initialState.supplyPoints,
+        1,
+        1,
+        pointState(["black"], "black"),
+      ),
+    };
+    const svg = renderBoard(state);
+    const legalObjectiveCoordinates = Array.from(
+      svg.querySelectorAll<SVGRectElement>(
+        ".objective-target.legal-placement",
+      ),
+    ).map((target) => [target.dataset.row, target.dataset.column]);
+
+    expect(legalObjectiveCoordinates).toEqual([
+      ["0", "0"],
+      ["0", "1"],
+      ["1", "0"],
+      ["1", "1"],
+    ]);
+    expect(
+      svg.querySelectorAll(
+        '.legal-placement-indicator[data-kind="objective"][r="0.09"]',
+      ),
+    ).toHaveLength(4);
+    expect(svg.querySelector(".eligible-support")).toBeNull();
+  });
+
+  test("does not mark targets rejected by placement legality", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      remainingPieces: { black: 7, white: 12 },
+      supplyPoints: replacePoint(
+        replacePoint(
+          initialState.supplyPoints,
+          0,
+          0,
+          pointState(["black", "black", "black"], "black"),
+        ),
+        0,
+        1,
+        pointState(["black", "black"], "black"),
+      ),
+      turn: {
+        ...initialState.turn,
+        placements: [
+          { kind: "supply-point", row: 0, column: 1 },
+          { kind: "supply-point", row: 0, column: 1 },
+        ],
+      },
+    };
+    const svg = renderBoard(state);
+
+    for (const [row, column] of [[0, 0], [0, 1]] as const) {
+      const target = svg.querySelector(
+        selector("supply-point-target", "supply-point", row, column),
+      );
+      expect(target?.classList.contains("legal-placement")).toBe(false);
+      expect(target?.hasAttribute("data-placement-legal")).toBe(false);
+    }
+  });
+
+  test("clears legal placement feedback after game end", () => {
+    const initialState = createInitialGameState(3, 1);
+    const terminalState: GameState = {
+      ...initialState,
+      remainingPieces: { black: 0, white: 0 },
+    };
+    const svg = renderBoard(terminalState);
+
+    expect(svg.querySelector(".legal-placement")).toBeNull();
+    expect(svg.querySelector(".legal-placement-indicator")).toBeNull();
+    expect(svg.querySelector("[data-placement-legal]")).toBeNull();
+  });
+});
+
 test("contains five-piece stacks at every outer Supply corner", () => {
   const cellsPerSide = 4;
   const initialState = createInitialGameState(cellsPerSide, 36);

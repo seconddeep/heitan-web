@@ -8,6 +8,10 @@ import { isGameOver } from "./game/game-flow.ts";
 import { calculateGameResult } from "./game/game-result.ts";
 import { countPieces } from "./game/game-state.ts";
 import type { GameState, Player, PointState } from "./game/game-state.ts";
+import {
+  evaluateObjectivePlacement,
+  evaluateSupplyPointPlacement,
+} from "./game/placement-legality.ts";
 
 export interface SvgPosition {
   readonly row: number;
@@ -35,6 +39,7 @@ export interface BoardPresentationState {
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
+const legalPlacementIndicatorRadius = 0.09;
 const supplyPointHitRadius = 0.3;
 const pieceRadius = 0.24;
 const pieceStackStep = 0.1;
@@ -189,6 +194,24 @@ function coordinatesMatch(
   return first.row === second.row && first.column === second.column;
 }
 
+function markLegalPlacement(
+  target: SVGElement,
+  indicatorLayer: SVGGElement,
+  position: SvgPosition,
+  kind: "supply-point" | "objective",
+): void {
+  target.classList.add("legal-placement");
+  target.dataset.placementLegal = "true";
+
+  const indicator = createSvgElement("circle");
+  indicator.classList.add("legal-placement-indicator");
+  indicator.setAttribute("cx", String(position.x));
+  indicator.setAttribute("cy", String(position.y));
+  indicator.setAttribute("r", String(legalPlacementIndicatorRadius));
+  setCoordinateMetadata(indicator, position, kind);
+  indicatorLayer.append(indicator);
+}
+
 /** Renders a fresh SVG projection of GameState plus transient presentation. */
 export function renderBoard(
   state: GameState,
@@ -225,6 +248,8 @@ export function renderBoard(
 
   const pieceLayer = createSvgElement("g");
   pieceLayer.classList.add("piece-layer");
+  const legalTargetLayer = createSvgElement("g");
+  legalTargetLayer.classList.add("legal-target-layer");
   const targetLayer = createSvgElement("g");
   targetLayer.classList.add("hit-target-layer");
 
@@ -250,6 +275,19 @@ export function renderBoard(
     target.setAttribute("width", "1");
     target.setAttribute("height", "1");
     setCoordinateMetadata(target, position, "objective");
+
+    if (
+      !isGameOver(state) &&
+      evaluateObjectivePlacement(state, position).legal
+    ) {
+      markLegalPlacement(
+        target,
+        legalTargetLayer,
+        position,
+        "objective",
+      );
+    }
+
     targetLayer.append(target);
   }
 
@@ -260,6 +298,18 @@ export function renderBoard(
     target.setAttribute("cy", String(position.y));
     target.setAttribute("r", String(supplyPointHitRadius));
     setCoordinateMetadata(target, position, "supply-point");
+
+    if (
+      !isGameOver(state) &&
+      evaluateSupplyPointPlacement(state, position).legal
+    ) {
+      markLegalPlacement(
+        target,
+        legalTargetLayer,
+        position,
+        "supply-point",
+      );
+    }
 
     if (
       presentation.eligibleSupplyPoints?.some((coordinate) =>
@@ -273,7 +323,7 @@ export function renderBoard(
     targetLayer.append(target);
   }
 
-  svg.append(grid, pieceLayer, targetLayer);
+  svg.append(grid, pieceLayer, legalTargetLayer, targetLayer);
 
   return svg;
 }

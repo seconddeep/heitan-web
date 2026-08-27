@@ -125,6 +125,11 @@ describe("Supply Point interaction", () => {
       "black",
     ]);
     expect(session.getGameState().turn.placements).toHaveLength(2);
+    expect(
+      container.querySelector(
+        '.supply-point-target[data-row="1"][data-column="2"]',
+      )?.classList.contains("legal-placement"),
+    ).toBe(false);
     expect(render).toHaveBeenCalledTimes(3);
   });
 
@@ -156,6 +161,11 @@ describe("Supply Point interaction", () => {
     expect(container.querySelector(".active-player-status")?.textContent).toBe(
       "White to move",
     );
+    expect(
+      container.querySelector(
+        '.supply-point-target[data-row="1"][data-column="2"]',
+      )?.classList.contains("legal-placement"),
+    ).toBe(true);
   });
 
   test("an illegal click leaves state and projection unchanged", () => {
@@ -212,6 +222,21 @@ describe("Objective interaction", () => {
         '.eligible-support[data-row="1"][data-column="1"]',
       ),
     ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '.eligible-support[data-row="1"][data-column="1"]',
+      )?.classList.contains("legal-placement"),
+    ).toBe(true);
+    expect(
+      container.querySelector(
+        '.supply-point-target[data-row="0"][data-column="0"]',
+      )?.classList.contains("eligible-support"),
+    ).toBe(false);
+    expect(
+      container.querySelector(
+        '.supply-point-target[data-row="0"][data-column="0"]',
+      )?.classList.contains("legal-placement"),
+    ).toBe(true);
     expect(render).toHaveBeenCalledTimes(2);
 
     clickTarget(
@@ -483,6 +508,8 @@ describe("completed game flow", () => {
     expect(container.querySelector(".active-player-status")?.textContent).toBe(
       "Game over",
     );
+    expect(container.querySelector(".legal-placement")).toBeNull();
+    expect(container.querySelector("[data-placement-legal]")).toBeNull();
 
     const rendersAtGameEnd = render.mock.calls.length;
     clickTarget(

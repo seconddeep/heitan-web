@@ -125,7 +125,8 @@ body {
   pointer-events: none;
 }
 
-.piece-layer {
+.piece-layer,
+.legal-target-layer {
   pointer-events: none;
 }
 
@@ -158,14 +159,10 @@ body {
   pointer-events: all;
 }
 
-.objective-target:hover {
-  fill: rgb(74 116 87 / 14%);
+.legal-placement-indicator {
+  fill: rgb(74 116 87 / 20%);
   stroke: #4a7457;
-}
-
-.supply-point-target:hover {
-  fill: rgb(74 116 87 / 16%);
-  stroke: #4a7457;
+  stroke-width: 0.04;
 }
 
 .supply-point-target.eligible-support {
