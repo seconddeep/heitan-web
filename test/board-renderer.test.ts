@@ -158,21 +158,25 @@ describe.each([4, 7])("%i by %i rendered board", (cellsPerSide) => {
 
 describe("legal placement target rendering", () => {
   test.each([4, 7])(
-    "derives legal Supply Point targets for a %i by %i board",
+    "derives legal Supply Point targets for a %i-cell board",
     (cellsPerSide) => {
       const svg = renderBoard(createInitialGameState(cellsPerSide, 12));
 
       expect(
         svg.querySelectorAll(
-          '.supply-point-target[data-placement-legal="true"]',
+          '.guide-indicator[data-kind="supply-point"][data-placement-legal="true"]',
         ),
       ).toHaveLength((cellsPerSide + 1) ** 2);
       expect(
         svg.querySelectorAll(
-          '.legal-placement-indicator[data-kind="supply-point"][r="0.09"]',
+          '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][r="0.09"]',
         ),
       ).toHaveLength((cellsPerSide + 1) ** 2);
-      expect(svg.querySelectorAll(".objective-target.legal-placement"))
+      expect(
+        svg.querySelectorAll(
+          '.guide-indicator[data-placement-legal="true"][data-kind="objective"]',
+        ),
+      )
         .toHaveLength(0);
     },
   );
@@ -190,8 +194,8 @@ describe("legal placement target rendering", () => {
     };
     const svg = renderBoard(state);
     const legalObjectiveCoordinates = Array.from(
-      svg.querySelectorAll<SVGRectElement>(
-        ".objective-target.legal-placement",
+      svg.querySelectorAll<SVGCircleElement>(
+        '.guide-indicator[data-placement-legal="true"][data-kind="objective"]',
       ),
     ).map((target) => [target.dataset.row, target.dataset.column]);
 
@@ -203,10 +207,38 @@ describe("legal placement target rendering", () => {
     ]);
     expect(
       svg.querySelectorAll(
-        '.legal-placement-indicator[data-kind="objective"][r="0.09"]',
+        '.guide-indicator[data-placement-legal="true"][data-kind="objective"][r="0.09"]',
       ),
     ).toHaveLength(4);
-    expect(svg.querySelector(".eligible-support")).toBeNull();
+    expect(svg.querySelector('[data-support-eligible="true"]')).toBeNull();
+  });
+
+  test("shows only eligible supports during Objective support selection", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      supplyPoints: replacePoint(
+        initialState.supplyPoints,
+        1,
+        1,
+        pointState(["black"], "black"),
+      ),
+    };
+    const svg = renderBoard(state, {
+      eligibleSupplyPoints: [{ row: 1, column: 1 }],
+    });
+
+    expect(svg.querySelector('[data-placement-legal="true"]')).toBeNull();
+    expect(
+      svg.querySelectorAll(
+        '.guide-indicator[data-support-eligible="true"][r="0.09"]',
+      ),
+    ).toHaveLength(1);
+    expect(
+      svg.querySelector(
+        '.guide-indicator[data-support-eligible="true"][data-row="1"][data-column="1"]',
+      ),
+    ).not.toBeNull();
   });
 
   test("does not mark targets rejected by placement legality", () => {
@@ -236,11 +268,10 @@ describe("legal placement target rendering", () => {
     const svg = renderBoard(state);
 
     for (const [row, column] of [[0, 0], [0, 1]] as const) {
-      const target = svg.querySelector(
-        selector("supply-point-target", "supply-point", row, column),
+      const indicator = svg.querySelector(
+        `.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][data-row="${row}"][data-column="${column}"]`,
       );
-      expect(target?.classList.contains("legal-placement")).toBe(false);
-      expect(target?.hasAttribute("data-placement-legal")).toBe(false);
+      expect(indicator).toBeNull();
     }
   });
 
@@ -252,8 +283,7 @@ describe("legal placement target rendering", () => {
     };
     const svg = renderBoard(terminalState);
 
-    expect(svg.querySelector(".legal-placement")).toBeNull();
-    expect(svg.querySelector(".legal-placement-indicator")).toBeNull();
+    expect(svg.querySelector('[data-placement-legal="true"]')).toBeNull();
     expect(svg.querySelector("[data-placement-legal]")).toBeNull();
   });
 });

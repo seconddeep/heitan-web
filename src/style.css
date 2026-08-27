@@ -126,7 +126,7 @@ body {
 }
 
 .piece-layer,
-.legal-target-layer {
+.guide-layer {
   pointer-events: none;
 }
 
@@ -159,16 +159,10 @@ body {
   pointer-events: all;
 }
 
-.legal-placement-indicator {
+.guide-indicator {
   fill: rgb(74 116 87 / 20%);
   stroke: #4a7457;
   stroke-width: 0.04;
-}
-
-.supply-point-target.eligible-support {
-  fill: rgb(191 132 37 / 22%);
-  stroke: #bf8425;
-  stroke-width: 0.1;
 }
 
 @media (max-width: 36rem) {

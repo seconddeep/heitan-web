@@ -194,22 +194,74 @@ function coordinatesMatch(
   return first.row === second.row && first.column === second.column;
 }
 
-function markLegalPlacement(
-  target: SVGElement,
-  indicatorLayer: SVGGElement,
+function appendGuideIndicator(
+  guideLayer: SVGGElement,
   position: SvgPosition,
   kind: "supply-point" | "objective",
+  feedback: "legal-placement" | "eligible-support",
 ): void {
-  target.classList.add("legal-placement");
-  target.dataset.placementLegal = "true";
-
   const indicator = createSvgElement("circle");
-  indicator.classList.add("legal-placement-indicator");
+  indicator.classList.add("guide-indicator");
+
+  if (feedback === "legal-placement") {
+    indicator.dataset.placementLegal = "true";
+  } else {
+    indicator.dataset.supportEligible = "true";
+  }
+
   indicator.setAttribute("cx", String(position.x));
   indicator.setAttribute("cy", String(position.y));
   indicator.setAttribute("r", String(legalPlacementIndicatorRadius));
   setCoordinateMetadata(indicator, position, kind);
-  indicatorLayer.append(indicator);
+  guideLayer.append(indicator);
+}
+
+function appendGuideIndicators(
+  guideLayer: SVGGElement,
+  state: GameState,
+  layout: BoardSvgLayout,
+  presentation: BoardPresentationState,
+): void {
+  if (presentation.eligibleSupplyPoints !== undefined) {
+    for (const position of layout.supplyPoints) {
+      if (
+        presentation.eligibleSupplyPoints.some((coordinate) =>
+          coordinatesMatch(coordinate, position),
+        )
+      ) {
+        appendGuideIndicator(
+          guideLayer,
+          position,
+          "supply-point",
+          "eligible-support",
+        );
+      }
+    }
+
+    return;
+  }
+
+  for (const position of layout.objectives) {
+    if (evaluateObjectivePlacement(state, position).legal) {
+      appendGuideIndicator(
+        guideLayer,
+        position,
+        "objective",
+        "legal-placement",
+      );
+    }
+  }
+
+  for (const position of layout.supplyPoints) {
+    if (evaluateSupplyPointPlacement(state, position).legal) {
+      appendGuideIndicator(
+        guideLayer,
+        position,
+        "supply-point",
+        "legal-placement",
+      );
+    }
+  }
 }
 
 /** Renders a fresh SVG projection of GameState plus transient presentation. */
@@ -248,10 +300,12 @@ export function renderBoard(
 
   const pieceLayer = createSvgElement("g");
   pieceLayer.classList.add("piece-layer");
-  const legalTargetLayer = createSvgElement("g");
-  legalTargetLayer.classList.add("legal-target-layer");
+  const guideLayer = createSvgElement("g");
+  guideLayer.classList.add("guide-layer");
   const targetLayer = createSvgElement("g");
   targetLayer.classList.add("hit-target-layer");
+
+  appendGuideIndicators(guideLayer, state, layout, presentation);
 
   for (const position of layout.supplyPoints) {
     const point = getPointState(state, position, "supply-point");
@@ -276,18 +330,6 @@ export function renderBoard(
     target.setAttribute("height", "1");
     setCoordinateMetadata(target, position, "objective");
 
-    if (
-      !isGameOver(state) &&
-      evaluateObjectivePlacement(state, position).legal
-    ) {
-      markLegalPlacement(
-        target,
-        legalTargetLayer,
-        position,
-        "objective",
-      );
-    }
-
     targetLayer.append(target);
   }
 
@@ -299,31 +341,10 @@ export function renderBoard(
     target.setAttribute("r", String(supplyPointHitRadius));
     setCoordinateMetadata(target, position, "supply-point");
 
-    if (
-      !isGameOver(state) &&
-      evaluateSupplyPointPlacement(state, position).legal
-    ) {
-      markLegalPlacement(
-        target,
-        legalTargetLayer,
-        position,
-        "supply-point",
-      );
-    }
-
-    if (
-      presentation.eligibleSupplyPoints?.some((coordinate) =>
-        coordinatesMatch(coordinate, position),
-      )
-    ) {
-      target.classList.add("eligible-support");
-      target.dataset.supportEligible = "true";
-    }
-
     targetLayer.append(target);
   }
 
-  svg.append(grid, pieceLayer, legalTargetLayer, targetLayer);
+  svg.append(grid, pieceLayer, guideLayer, targetLayer);
 
   return svg;
 }

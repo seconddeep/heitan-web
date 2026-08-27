@@ -127,9 +127,9 @@ describe("Supply Point interaction", () => {
     expect(session.getGameState().turn.placements).toHaveLength(2);
     expect(
       container.querySelector(
-        '.supply-point-target[data-row="1"][data-column="2"]',
-      )?.classList.contains("legal-placement"),
-    ).toBe(false);
+        '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][data-row="1"][data-column="2"]',
+      ),
+    ).toBeNull();
     expect(render).toHaveBeenCalledTimes(3);
   });
 
@@ -163,9 +163,9 @@ describe("Supply Point interaction", () => {
     );
     expect(
       container.querySelector(
-        '.supply-point-target[data-row="1"][data-column="2"]',
-      )?.classList.contains("legal-placement"),
-    ).toBe(true);
+        '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][data-row="1"][data-column="2"]',
+      ),
+    ).not.toBeNull();
   });
 
   test("an illegal click leaves state and projection unchanged", () => {
@@ -219,24 +219,20 @@ describe("Objective interaction", () => {
     });
     expect(
       container.querySelector(
-        '.eligible-support[data-row="1"][data-column="1"]',
+        '.guide-indicator[data-support-eligible="true"][data-row="1"][data-column="1"]',
       ),
     ).not.toBeNull();
     expect(
       container.querySelector(
-        '.eligible-support[data-row="1"][data-column="1"]',
-      )?.classList.contains("legal-placement"),
+        '.guide-indicator[data-support-eligible="true"][data-row="1"][data-column="1"]',
+      )?.hasAttribute("data-support-eligible"),
     ).toBe(true);
     expect(
       container.querySelector(
-        '.supply-point-target[data-row="0"][data-column="0"]',
-      )?.classList.contains("eligible-support"),
-    ).toBe(false);
-    expect(
-      container.querySelector(
-        '.supply-point-target[data-row="0"][data-column="0"]',
-      )?.classList.contains("legal-placement"),
-    ).toBe(true);
+        '.guide-indicator[data-support-eligible="true"][data-row="0"][data-column="0"]',
+      ),
+    ).toBeNull();
+    expect(container.querySelector('[data-placement-legal="true"]')).toBeNull();
     expect(render).toHaveBeenCalledTimes(2);
 
     clickTarget(
@@ -255,8 +251,10 @@ describe("Objective interaction", () => {
       { row: 1, column: 1 },
     ]);
     expect(session.getPendingSupportSelection()).toBeNull();
-    expect(container.querySelector(".eligible-support")).toBeNull();
+    expect(container.querySelector('[data-support-eligible="true"]')).toBeNull();
     expect(container.querySelector("[data-support-eligible]")).toBeNull();
+    expect(container.querySelector('[data-placement-legal="true"]'))
+      .not.toBeNull();
     expect(render).toHaveBeenCalledTimes(3);
   });
 
@@ -283,7 +281,9 @@ describe("Objective interaction", () => {
     });
     expect(
       Array.from(
-        container.querySelectorAll<SVGElement>(".eligible-support"),
+        container.querySelectorAll<SVGElement>(
+          '.guide-indicator[data-support-eligible="true"]',
+        ),
       ).map((target) => [target.dataset.row, target.dataset.column]),
     ).toEqual([
       ["1", "1"],
@@ -292,6 +292,7 @@ describe("Objective interaction", () => {
     expect(
       container.querySelectorAll('[data-support-eligible="true"]'),
     ).toHaveLength(2);
+    expect(container.querySelector('[data-placement-legal="true"]')).toBeNull();
     expect(
       container.querySelector(
         '.supply-point-target[data-row="2"][data-column="1"]',
@@ -327,7 +328,8 @@ describe("Objective interaction", () => {
       ]);
       expect(currentState.turn.usedSupplyPoints).toEqual([{ row, column }]);
       expect(session.getPendingSupportSelection()).toBeNull();
-      expect(container.querySelector(".eligible-support")).toBeNull();
+      expect(container.querySelector('[data-support-eligible="true"]'))
+        .toBeNull();
       expect(container.querySelector("[data-support-eligible]")).toBeNull();
       expect(render).toHaveBeenCalledTimes(3);
     },
@@ -352,7 +354,7 @@ describe("Objective interaction", () => {
     expect(session.getGameState().turn.placements).toEqual([]);
     expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
     expect(session.getPendingSupportSelection()).toBeNull();
-    expect(container.querySelector(".eligible-support")).toBeNull();
+    expect(container.querySelector('[data-support-eligible="true"]')).toBeNull();
     expect(container.querySelector("[data-support-eligible]")).toBeNull();
     expect(render).toHaveBeenCalledTimes(3);
   });
@@ -375,7 +377,7 @@ describe("Objective interaction", () => {
     expect(session.getGameState().objectives[0][0].pieces).toEqual([]);
     expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
     expect(session.getPendingSupportSelection()).toBeNull();
-    expect(container.querySelector(".eligible-support")).toBeNull();
+    expect(container.querySelector('[data-support-eligible="true"]')).toBeNull();
     expect(container.querySelector("[data-support-eligible]")).toBeNull();
     expect(render).toHaveBeenCalledTimes(3);
   });
@@ -394,7 +396,8 @@ describe("Objective interaction", () => {
 
     expect(session.getGameState()).toBe(initialState);
     expect(session.getPendingSupportSelection()).not.toBeNull();
-    expect(container.querySelectorAll(".eligible-support")).toHaveLength(2);
+    expect(container.querySelectorAll('[data-support-eligible="true"]'))
+      .toHaveLength(2);
     expect(render).toHaveBeenCalledTimes(2);
   });
 });
@@ -508,7 +511,7 @@ describe("completed game flow", () => {
     expect(container.querySelector(".active-player-status")?.textContent).toBe(
       "Game over",
     );
-    expect(container.querySelector(".legal-placement")).toBeNull();
+    expect(container.querySelector('[data-placement-legal="true"]')).toBeNull();
     expect(container.querySelector("[data-placement-legal]")).toBeNull();
 
     const rendersAtGameEnd = render.mock.calls.length;
