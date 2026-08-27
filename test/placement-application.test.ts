@@ -13,11 +13,7 @@ import {
   applySupplyPointPlacement,
   type ObjectivePlacementApplicationIllegalReason,
   type ObjectivePlacementApplicationResult,
-  type SupplyPointPlacementApplicationResult,
 } from "../src/game/placement-application.ts";
-import type {
-  SupplyPointPlacementIllegalReason,
-} from "../src/game/placement-legality.ts";
 
 function pointState(
   counts: { readonly black?: number; readonly white?: number } = {},
@@ -67,9 +63,7 @@ function withTurn(
 }
 
 function appliedState(
-  result:
-    | SupplyPointPlacementApplicationResult
-    | ObjectivePlacementApplicationResult,
+  result: ObjectivePlacementApplicationResult,
 ): GameState {
   expect(result.applied).toBe(true);
 
@@ -78,20 +72,6 @@ function appliedState(
   }
 
   return result.state;
-}
-
-function expectSupplyPointPlacementRejectedWithoutMutation(
-  state: GameState,
-  coordinate: BoardCoordinate,
-  reason: SupplyPointPlacementIllegalReason,
-): void {
-  const snapshot = structuredClone(state);
-
-  expect(applySupplyPointPlacement(state, coordinate)).toEqual({
-    applied: false,
-    reason,
-  });
-  expect(state).toEqual(snapshot);
 }
 
 function expectObjectivePlacementRejectedWithoutMutation(
@@ -143,9 +123,7 @@ describe("Supply Point placement application", () => {
     const originalTargetRow = state.supplyPoints[1];
     const unrelatedPoint = state.supplyPoints[0][0];
 
-    const nextState = appliedState(
-      applySupplyPointPlacement(state, target),
-    );
+    const nextState = applySupplyPointPlacement(state, target);
 
     expect(nextState.supplyPoints[1][1]).toEqual({
       pieces: ["black", "white", "white", "black"],
@@ -172,11 +150,11 @@ describe("Supply Point placement application", () => {
   test("appends sequential placements in bottom-to-top order", () => {
     let state = createInitialGameState(3, 12);
 
-    state = appliedState(applySupplyPointPlacement(state, target));
+    state = applySupplyPointPlacement(state, target);
     state = withTurn(state, { activePlayer: "white", placements: [] });
-    state = appliedState(applySupplyPointPlacement(state, target));
+    state = applySupplyPointPlacement(state, target);
     state = withTurn(state, { activePlayer: "black", placements: [] });
-    state = appliedState(applySupplyPointPlacement(state, target));
+    state = applySupplyPointPlacement(state, target);
 
     expect(state.supplyPoints[1][1].pieces).toEqual([
       "black",
@@ -323,65 +301,6 @@ describe("illegal placement application", () => {
     column: 1,
   } as const;
 
-  test("passes through Supply Point legality failures atomically", () => {
-    const initialState = createInitialGameState(3, 12);
-    const cases: readonly {
-      state: GameState;
-      coordinate: BoardCoordinate;
-      reason: SupplyPointPlacementIllegalReason;
-    }[] = [
-      {
-        state: initialState,
-        coordinate: { row: -1, column: 0 },
-        reason: "invalid-target",
-      },
-      {
-        state: withPoint(
-          initialState,
-          "supply-point",
-          supplyTarget,
-          pointState({ black: 3 }, "black", true),
-        ),
-        coordinate: supplyTarget,
-        reason: "point-secured",
-      },
-      {
-        state: {
-          ...initialState,
-          remainingPieces: { black: 0, white: 12 },
-        },
-        coordinate: supplyTarget,
-        reason: "no-remaining-pieces",
-      },
-      {
-        state: withTurn(initialState, {
-          placements: [
-            { kind: "supply-point", row: 0, column: 0 },
-            { kind: "supply-point", row: 0, column: 1 },
-            { kind: "supply-point", row: 0, column: 2 },
-          ],
-        }),
-        coordinate: supplyTarget,
-        reason: "turn-placement-limit-reached",
-      },
-      {
-        state: withTurn(initialState, {
-          placements: [supplyTarget, supplyTarget],
-        }),
-        coordinate: supplyTarget,
-        reason: "supply-point-turn-limit-reached",
-      },
-    ];
-
-    for (const placementCase of cases) {
-      expectSupplyPointPlacementRejectedWithoutMutation(
-        placementCase.state,
-        placementCase.coordinate,
-        placementCase.reason,
-      );
-    }
-  });
-
   test("passes through an Objective legality failure atomically", () => {
     expectObjectivePlacementRejectedWithoutMutation(
       createInitialGameState(3, 12),
@@ -409,9 +328,7 @@ describe("illegal placement application", () => {
       usedSupplyPoints: [{ row: 0, column: 0 }],
     });
 
-    const nextState = appliedState(
-      applySupplyPointPlacement(state, supplyTarget),
-    );
+    const nextState = applySupplyPointPlacement(state, supplyTarget);
 
     expect(nextState.turn.activePlayer).toBe("black");
     expect(nextState.turn.placements).toHaveLength(3);

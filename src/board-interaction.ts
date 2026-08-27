@@ -8,7 +8,10 @@ import {
   applyObjectivePlacement,
   applySupplyPointPlacement,
 } from "./game/placement-application.ts";
-import { evaluateObjectivePlacement } from "./game/placement-legality.ts";
+import {
+  evaluateObjectivePlacement,
+  evaluateSupplyPointPlacement,
+} from "./game/placement-legality.ts";
 
 type GameStateRenderer = (
   container: HTMLElement,
@@ -36,11 +39,17 @@ function processSupplySelection(
   current: BoardInteractionState,
   coordinate: BoardCoordinate,
 ): BoardInteractionState {
-  const result = applySupplyPointPlacement(current.gameState, coordinate);
+  const legality = evaluateSupplyPointPlacement(
+    current.gameState,
+    coordinate,
+  );
 
-  return result.applied
+  return legality.legal
     ? {
-        gameState: result.state,
+        gameState: applySupplyPointPlacement(
+          current.gameState,
+          coordinate,
+        ),
         pendingSupportSelection: null,
       }
     : current;

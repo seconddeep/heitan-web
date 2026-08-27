@@ -6,9 +6,7 @@ import type {
 } from "./game-state.ts";
 import {
   evaluateObjectivePlacement,
-  evaluateSupplyPointPlacement,
   type ObjectivePlacementIllegalReason,
-  type SupplyPointPlacementIllegalReason,
 } from "./placement-legality.ts";
 
 type PlacementApplicationResult<IllegalReason extends string> =
@@ -20,9 +18,6 @@ type PlacementApplicationResult<IllegalReason extends string> =
       readonly applied: false;
       readonly reason: IllegalReason;
     };
-
-export type SupplyPointPlacementApplicationResult =
-  PlacementApplicationResult<SupplyPointPlacementIllegalReason>;
 
 export type ObjectivePlacementApplicationIllegalReason =
   | ObjectivePlacementIllegalReason
@@ -89,26 +84,17 @@ function recordPlacement(
 export function applySupplyPointPlacement(
   state: GameState,
   coordinate: BoardCoordinate,
-): SupplyPointPlacementApplicationResult {
-  const legality = evaluateSupplyPointPlacement(state, coordinate);
-
-  if (!legality.legal) {
-    return { applied: false, reason: legality.reason };
-  }
-
+): GameState {
   const placement = { kind: "supply-point", ...coordinate } as const;
 
   return {
-    applied: true,
-    state: {
-      ...state,
-      supplyPoints: updatePointMatrix(
-        state.supplyPoints,
-        coordinate,
-        state.turn.activePlayer,
-      ),
-      ...recordPlacement(state, placement, state.turn.usedSupplyPoints),
-    },
+    ...state,
+    supplyPoints: updatePointMatrix(
+      state.supplyPoints,
+      coordinate,
+      state.turn.activePlayer,
+    ),
+    ...recordPlacement(state, placement, state.turn.usedSupplyPoints),
   };
 }
 
