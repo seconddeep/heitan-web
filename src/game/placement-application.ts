@@ -4,34 +4,6 @@ import type {
   PlacementTarget,
   PointState,
 } from "./game-state.ts";
-import {
-  evaluateObjectivePlacement,
-  type ObjectivePlacementIllegalReason,
-} from "./placement-legality.ts";
-
-type PlacementApplicationResult<IllegalReason extends string> =
-  | {
-      readonly applied: true;
-      readonly state: GameState;
-    }
-  | {
-      readonly applied: false;
-      readonly reason: IllegalReason;
-    };
-
-export type ObjectivePlacementApplicationIllegalReason =
-  | ObjectivePlacementIllegalReason
-  | "supporting-supply-point-not-eligible";
-
-export type ObjectivePlacementApplicationResult =
-  PlacementApplicationResult<ObjectivePlacementApplicationIllegalReason>;
-
-function coordinatesMatch(
-  first: BoardCoordinate,
-  second: BoardCoordinate,
-): boolean {
-  return first.row === second.row && first.column === second.column;
-}
 
 function appendActivePlayerPiece(
   point: PointState,
@@ -102,40 +74,19 @@ export function applyObjectivePlacement(
   state: GameState,
   coordinate: BoardCoordinate,
   supportingSupplyPoint: BoardCoordinate,
-): ObjectivePlacementApplicationResult {
-  const legality = evaluateObjectivePlacement(state, coordinate);
-
-  if (!legality.legal) {
-    return { applied: false, reason: legality.reason };
-  }
-
-  const selectedSupplyPointIsEligible = legality.eligibleSupplyPoints.some(
-    (eligibleSupplyPoint) =>
-      coordinatesMatch(eligibleSupplyPoint, supportingSupplyPoint),
-  );
-
-  if (!selectedSupplyPointIsEligible) {
-    return {
-      applied: false,
-      reason: "supporting-supply-point-not-eligible",
-    };
-  }
-
+): GameState {
   const placement = { kind: "objective", ...coordinate } as const;
 
   return {
-    applied: true,
-    state: {
-      ...state,
-      objectives: updatePointMatrix(
-        state.objectives,
-        coordinate,
-        state.turn.activePlayer,
-      ),
-      ...recordPlacement(state, placement, [
-        ...state.turn.usedSupplyPoints,
-        { ...supportingSupplyPoint },
-      ]),
-    },
+    ...state,
+    objectives: updatePointMatrix(
+      state.objectives,
+      coordinate,
+      state.turn.activePlayer,
+    ),
+    ...recordPlacement(state, placement, [
+      ...state.turn.usedSupplyPoints,
+      { ...supportingSupplyPoint },
+    ]),
   };
 }

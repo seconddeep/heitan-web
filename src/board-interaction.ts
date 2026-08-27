@@ -90,18 +90,14 @@ function processObjectiveSupportSelection(
     };
   }
 
-  const result = applyObjectivePlacement(
-    current.gameState,
-    pendingSupportSelection.objective,
-    { row: target.row, column: target.column },
-  );
-
-  return result.applied
-    ? {
-        gameState: result.state,
-        pendingSupportSelection: null,
-      }
-    : current;
+  return {
+    gameState: applyObjectivePlacement(
+      current.gameState,
+      pendingSupportSelection.objective,
+      { row: target.row, column: target.column },
+    ),
+    pendingSupportSelection: null,
+  };
 }
 
 function coordinatesMatch(
