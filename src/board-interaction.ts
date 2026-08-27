@@ -3,6 +3,7 @@ import {
   type BoardPresentationState,
 } from "./board-renderer.ts";
 import type { BoardCoordinate } from "./game/board-geometry.ts";
+import { isGameOver } from "./game/game-end.ts";
 import type { GameState, PlacementTarget } from "./game/game-state.ts";
 import {
   applyObjectivePlacement,
@@ -12,6 +13,7 @@ import {
   evaluateObjectivePlacement,
   evaluateSupplyPointPlacement,
 } from "./game/placement-legality.ts";
+import { completeTurn } from "./game/turn-completion.ts";
 
 type GameStateRenderer = (
   container: HTMLElement,
@@ -117,6 +119,14 @@ function parseCoordinate(value: string | undefined): number | null {
   return Number.isSafeInteger(coordinate) ? coordinate : null;
 }
 
+function completeTurnAfterThirdPlacement(state: GameState): GameState {
+  if (state.turn.placements.length !== 3) {
+    return state;
+  }
+
+  return completeTurn(state);
+}
+
 export function getPlacementTarget(
   eventTarget: EventTarget | null,
 ): PlacementTarget | null {
@@ -169,6 +179,10 @@ export function createBoardSession(
   };
 
   const handleClick = (event: MouseEvent): void => {
+    if (isGameOver(interactionState.gameState)) {
+      return;
+    }
+
     const target = getPlacementTarget(event.target);
     let nextInteractionState = interactionState;
 
@@ -188,7 +202,12 @@ export function createBoardSession(
     }
 
     if (nextInteractionState !== interactionState) {
-      interactionState = nextInteractionState;
+      interactionState = {
+        ...nextInteractionState,
+        gameState: completeTurnAfterThirdPlacement(
+          nextInteractionState.gameState,
+        ),
+      };
       renderCurrentState();
     }
   };

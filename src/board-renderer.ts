@@ -4,6 +4,8 @@ import {
   type BoardCoordinate,
   validateBoardSize,
 } from "./game/board-geometry.ts";
+import { isGameOver } from "./game/game-end.ts";
+import { calculateGameResult } from "./game/game-result.ts";
 import { countPieces } from "./game/game-state.ts";
 import type { GameState, Player, PointState } from "./game/game-state.ts";
 
@@ -297,7 +299,9 @@ export function renderGameStatus(state: GameState): HTMLElement {
 
   const activePlayer = document.createElement("p");
   activePlayer.classList.add("active-player-status");
-  activePlayer.textContent = `${capitalize(state.turn.activePlayer)} to move`;
+  activePlayer.textContent = isGameOver(state)
+    ? "Game over"
+    : `${capitalize(state.turn.activePlayer)} to move`;
 
   const details = document.createElement("div");
   details.classList.add("game-status-details");
@@ -320,14 +324,74 @@ export function renderGameStatus(state: GameState): HTMLElement {
   return status;
 }
 
+export function renderFinalResult(state: GameState): HTMLElement | null {
+  if (!isGameOver(state)) {
+    return null;
+  }
+
+  const result = calculateGameResult(state);
+
+  if (!result.finished) {
+    throw new Error("A terminal GameState must produce a final result");
+  }
+
+  const resultSection = document.createElement("section");
+  resultSection.classList.add("game-result");
+  resultSection.setAttribute("aria-label", "Final result");
+
+  const heading = document.createElement("h2");
+  heading.classList.add("game-result-heading");
+  heading.textContent = result.winner === null
+    ? "Draw"
+    : `${capitalize(result.winner)} wins`;
+
+  const table = document.createElement("table");
+  table.classList.add("objective-scores");
+  const caption = document.createElement("caption");
+  caption.textContent = "Final Objective scores";
+  const head = document.createElement("thead");
+  head.innerHTML = `
+    <tr>
+      <th scope="col">Score</th>
+      <th scope="col">Black</th>
+      <th scope="col">White</th>
+    </tr>
+  `;
+  const body = document.createElement("tbody");
+
+  for (const [label, key] of [
+    ["Secured Objectives", "secured"],
+    ["Advantage Objectives", "advantage"],
+    ["Objective Pieces", "pieces"],
+  ] as const) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <th scope="row">${label}</th>
+      <td>${result.scores.black[key]}</td>
+      <td>${result.scores.white[key]}</td>
+    `;
+    body.append(row);
+  }
+
+  table.append(caption, head, body);
+  resultSection.append(heading, table);
+
+  return resultSection;
+}
+
 /** Replaces the prior projection so no visual state survives a re-render. */
 export function renderGameState(
   container: HTMLElement,
   state: GameState,
   presentation: BoardPresentationState = {},
 ): void {
-  container.replaceChildren(
-    renderGameStatus(state),
-    renderBoard(state, presentation),
-  );
+  const result = renderFinalResult(state);
+  const children: Node[] = [renderGameStatus(state)];
+
+  if (result !== null) {
+    children.push(result);
+  }
+
+  children.push(renderBoard(state, presentation));
+  container.replaceChildren(...children);
 }

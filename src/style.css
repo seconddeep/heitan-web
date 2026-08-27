@@ -72,6 +72,45 @@ body {
   font-size: 0.9rem;
 }
 
+.game-result {
+  margin: 0 0 1.25rem;
+  padding: 1rem;
+  border: 1px solid #cec8b8;
+  border-radius: 0.5rem;
+  background: #f3f0e7;
+}
+
+.game-result-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.objective-scores {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.objective-scores caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.objective-scores th,
+.objective-scores td {
+  padding: 0.3rem 0.45rem;
+  border-bottom: 1px solid #dcd6c8;
+}
+
+.objective-scores tbody th {
+  text-align: left;
+}
+
 .heitan-board {
   display: block;
   width: 100%;
