@@ -7,11 +7,7 @@ import {
   type Player,
   type PointState,
 } from "../src/game/game-state.ts";
-import {
-  completeTurn,
-  type TurnCompletionRejectedReason,
-  type TurnCompletionResult,
-} from "../src/game/turn-completion.ts";
+import { completeTurn } from "../src/game/turn-completion.ts";
 
 function pointState(
   black: number,
@@ -77,37 +73,6 @@ function completableState(activePlayer: Player): GameState {
   };
 }
 
-function completedState(result: TurnCompletionResult): GameState {
-  expect(result.completed).toBe(true);
-
-  if (!result.completed) {
-    throw new Error(`Expected turn completion, got ${result.reason}`);
-  }
-
-  return result.state;
-}
-
-function expectRejectedWithoutMutation(
-  state: GameState,
-  reason: TurnCompletionRejectedReason,
-): void {
-  const snapshot = structuredClone(state);
-  const originalTurn = state.turn;
-  const originalPlacements = state.turn.placements;
-  const originalUsedSupplyPoints = state.turn.usedSupplyPoints;
-  const originalSupplyPoints = state.supplyPoints;
-  const originalObjectives = state.objectives;
-
-  expect(completeTurn(state)).toEqual({ completed: false, reason });
-  expect(state).toEqual(snapshot);
-  expect(state.turn).toBe(originalTurn);
-  expect(state.turn.activePlayer).toBe(snapshot.turn.activePlayer);
-  expect(state.turn.placements).toBe(originalPlacements);
-  expect(state.turn.usedSupplyPoints).toBe(originalUsedSupplyPoints);
-  expect(state.supplyPoints).toBe(originalSupplyPoints);
-  expect(state.objectives).toBe(originalObjectives);
-}
-
 describe("completeTurn", () => {
   test.each([
     { activePlayer: "black", nextPlayer: "white" },
@@ -116,7 +81,7 @@ describe("completeTurn", () => {
     "completes $activePlayer's three-placement turn for $nextPlayer",
     ({ activePlayer, nextPlayer }) => {
       const state = completableState(activePlayer);
-      const nextState = completedState(completeTurn(state));
+      const nextState = completeTurn(state);
 
       expect(nextState.turn).toEqual({
         activePlayer: nextPlayer,
@@ -127,7 +92,7 @@ describe("completeTurn", () => {
   );
 
   test("resolves Control, Advantage, and Secured state before the next turn", () => {
-    const nextState = completedState(completeTurn(completableState("black")));
+    const nextState = completeTurn(completableState("black"));
 
     expect(nextState.turn.activePlayer).toBe("white");
     expect(nextState.supplyPoints[0]).toEqual([
@@ -151,7 +116,7 @@ describe("completeTurn", () => {
     const objectivePieceStacks = state.objectives.map((row) =>
       row.map((point) => point.pieces),
     );
-    const nextState = completedState(completeTurn(state));
+    const nextState = completeTurn(state);
 
     expect(nextState.remainingPieces).toBe(state.remainingPieces);
     expect(nextState.remainingPieces).toEqual({ black: 7, white: 8 });
@@ -165,41 +130,6 @@ describe("completeTurn", () => {
         expect(point.pieces).toBe(objectivePieceStacks[rowIndex][columnIndex]);
       }),
     );
-  });
-
-  test.each([0, 1, 2])(
-    "rejects an incomplete turn with %i placements atomically",
-    (placementCount) => {
-      const baseState = completableState("black");
-      const stalePoint = pointState(2, 1, "white");
-      const state: GameState = {
-        ...baseState,
-        supplyPoints: [
-          [stalePoint, ...baseState.supplyPoints[0].slice(1)],
-          ...baseState.supplyPoints.slice(1),
-        ],
-        turn: {
-          ...baseState.turn,
-          placements: placements(placementCount),
-        },
-      };
-
-      expectRejectedWithoutMutation(state, "incomplete-turn");
-      expect(state.supplyPoints[0][0]).toBe(stalePoint);
-      expect(state.supplyPoints[0][0].player).toBe("white");
-      expect(state.turn.placements).toHaveLength(placementCount);
-      expect(state.turn.usedSupplyPoints).toHaveLength(2);
-    },
-  );
-
-  test("rejects an overfilled turn rather than recovering it", () => {
-    const state = completableState("white");
-    const overfilledState: GameState = {
-      ...state,
-      turn: { ...state.turn, placements: placements(4) },
-    };
-
-    expectRejectedWithoutMutation(overfilledState, "overfilled-turn");
   });
 
   test("does not mutate the completed turn's input graph", () => {
@@ -219,7 +149,7 @@ describe("completeTurn", () => {
       row.map((point) => point.pieces),
     );
 
-    const nextState = completedState(completeTurn(state));
+    const nextState = completeTurn(state);
 
     expect(state).toEqual(snapshot);
     expect(nextState).not.toBe(state);

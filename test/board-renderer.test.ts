@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import {
   createBoardSvgLayout,
   renderBoard,
+  renderFinalResult,
   renderGameState,
   renderGameStatus,
 } from "../src/board-renderer.ts";
@@ -394,6 +395,47 @@ test("renders turn and remaining-piece status directly from GameState", () => {
   expect(status.querySelector(".placement-count")?.textContent).toBe(
     "Placements: 2 / 3",
   );
+});
+
+test.each([
+  ["black", "Black wins"],
+  ["white", "White wins"],
+] as const)("renders a %s win from terminal Objective scores", (player, title) => {
+  const initialState = createInitialGameState(3, 3);
+  const state: GameState = {
+    ...initialState,
+    remainingPieces: { black: 0, white: 0 },
+    objectives: replacePoint(
+      initialState.objectives,
+      0,
+      0,
+      pointState([player, player, player], player, true),
+    ),
+  };
+  const result = renderFinalResult(state);
+
+  expect(result?.querySelector(".game-result-heading")?.textContent).toBe(title);
+  expect(
+    Array.from(result?.querySelectorAll("tbody tr") ?? []).map((row) =>
+      Array.from(row.children).map((cell) => cell.textContent),
+    ),
+  ).toEqual([
+    [
+      "Secured Objectives",
+      player === "black" ? "1" : "0",
+      player === "white" ? "1" : "0",
+    ],
+    ["Advantage Objectives", "0", "0"],
+    [
+      "Objective Pieces",
+      player === "black" ? "3" : "0",
+      player === "white" ? "3" : "0",
+    ],
+  ]);
+});
+
+test("does not calculate or render a result for an unfinished game", () => {
+  expect(renderFinalResult(createInitialGameState(3, 12))).toBeNull();
 });
 
 test("re-rendering replaces all stale board and status visuals", () => {

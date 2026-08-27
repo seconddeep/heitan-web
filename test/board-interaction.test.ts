@@ -128,7 +128,7 @@ describe("Supply Point interaction", () => {
     expect(render).toHaveBeenCalledTimes(3);
   });
 
-  test("does not complete the turn after the third successful placement", () => {
+  test("completes the turn after the third successful placement", () => {
     const { container, session } = createRenderedSession();
 
     clickTarget(
@@ -145,12 +145,16 @@ describe("Supply Point interaction", () => {
     );
 
     const currentState = session.getGameState();
-    expect(currentState.turn.placements).toHaveLength(3);
-    expect(currentState.turn.activePlayer).toBe("black");
-    expect(currentState.supplyPoints[1][2].player).toBeNull();
-    expect(currentState.supplyPoints[2][2].player).toBeNull();
+    expect(currentState.turn.placements).toEqual([]);
+    expect(currentState.turn.usedSupplyPoints).toEqual([]);
+    expect(currentState.turn.activePlayer).toBe("white");
+    expect(currentState.supplyPoints[1][2].player).toBe("black");
+    expect(currentState.supplyPoints[2][2].player).toBe("black");
     expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "Placements: 3 / 3",
+      "Placements: 0 / 3",
+    );
+    expect(container.querySelector(".active-player-status")?.textContent).toBe(
+      "White to move",
     );
   });
 
@@ -367,6 +371,127 @@ describe("Objective interaction", () => {
     expect(session.getPendingSupportSelection()).not.toBeNull();
     expect(container.querySelectorAll(".eligible-support")).toHaveLength(2);
     expect(render).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("completed game flow", () => {
+  test("completes an Objective third placement only after support selection", () => {
+    let state = replaceSupplyPoint(
+      createInitialGameState(3, 12),
+      1,
+      1,
+      controlledSupplyPoint(),
+    );
+    state = replaceSupplyPoint(state, 0, 0, {
+      pieces: ["black", "black"],
+      secured: false,
+      player: null,
+    });
+    state = {
+      ...state,
+      remainingPieces: { black: 10, white: 12 },
+      turn: {
+        ...state.turn,
+        placements: [
+          { kind: "supply-point", row: 0, column: 0 },
+          { kind: "supply-point", row: 0, column: 0 },
+        ],
+      },
+    };
+    const { container, session } = createRenderedSession(state);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+
+    expect(session.getGameState()).toBe(state);
+    expect(session.getGameState().turn.placements).toHaveLength(2);
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+
+    const completed = session.getGameState();
+    expect(completed.turn.activePlayer).toBe("white");
+    expect(completed.turn.placements).toEqual([]);
+    expect(completed.turn.usedSupplyPoints).toEqual([]);
+    expect(completed.objectives[1][1]).toMatchObject({
+      pieces: ["black"],
+      player: "black",
+      secured: false,
+    });
+  });
+
+  test("continues across Black and White turns", () => {
+    const { container, session } = createRenderedSession();
+    const targets = [
+      '.supply-point-target[data-row="1"][data-column="1"]',
+      '.supply-point-target[data-row="1"][data-column="1"]',
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    ];
+
+    for (const target of targets) {
+      clickTarget(container, target);
+    }
+
+    expect(session.getGameState().turn.activePlayer).toBe("white");
+
+    for (const target of targets) {
+      clickTarget(container, target);
+    }
+
+    const state = session.getGameState();
+    expect(state.turn.activePlayer).toBe("black");
+    expect(state.turn.placements).toEqual([]);
+    expect(state.remainingPieces).toEqual({ black: 9, white: 9 });
+    expect(state.supplyPoints[1][1].pieces).toEqual([
+      "black",
+      "black",
+      "white",
+      "white",
+    ]);
+  });
+
+  test("renders a final draw and blocks interaction after the final turn", () => {
+    const initialState: GameState = {
+      ...createInitialGameState(3, 3),
+      remainingPieces: { black: 3, white: 0 },
+    };
+    const { container, render, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+
+    const terminalState = session.getGameState();
+    expect(terminalState.remainingPieces).toEqual({ black: 0, white: 0 });
+    expect(terminalState.turn.placements).toEqual([]);
+    expect(container.querySelector(".game-result-heading")?.textContent).toBe(
+      "Draw",
+    );
+    expect(container.querySelector(".active-player-status")?.textContent).toBe(
+      "Game over",
+    );
+
+    const rendersAtGameEnd = render.mock.calls.length;
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="2"][data-column="2"]',
+    );
+
+    expect(session.getGameState()).toBe(terminalState);
+    expect(render).toHaveBeenCalledTimes(rendersAtGameEnd);
   });
 });
 

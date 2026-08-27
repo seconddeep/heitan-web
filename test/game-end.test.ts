@@ -9,10 +9,7 @@ import {
   type Player,
   type PointState,
 } from "../src/game/game-state.ts";
-import {
-  completeTurn,
-  type TurnCompletionResult,
-} from "../src/game/turn-completion.ts";
+import { completeTurn } from "../src/game/turn-completion.ts";
 
 function placements(count: number): readonly PlacementTarget[] {
   return Array.from({ length: count }, (_, column) => ({
@@ -62,16 +59,6 @@ function pointState(
   return { pieces, secured: false, player };
 }
 
-function completedState(result: TurnCompletionResult): GameState {
-  expect(result.completed).toBe(true);
-
-  if (!result.completed) {
-    throw new Error(`Expected turn completion, got ${result.reason}`);
-  }
-
-  return result.state;
-}
-
 describe("isGameOver", () => {
   test.each([
     {
@@ -104,7 +91,7 @@ describe("isGameOver", () => {
 
     expect(isGameOver(inProgressState)).toBe(false);
 
-    const finalState = completedState(completeTurn(inProgressState));
+    const finalState = completeTurn(inProgressState);
 
     expect(finalState.turn.placements).toEqual([]);
     expect(isGameOver(finalState)).toBe(true);
