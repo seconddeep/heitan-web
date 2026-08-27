@@ -4,8 +4,14 @@ import {
 } from "./board-renderer.ts";
 import type { BoardCoordinate } from "./game/board-geometry.ts";
 import type { GameState, PlacementTarget } from "./game/game-state.ts";
-import { applyPlacement } from "./game/placement-application.ts";
-import { evaluatePlacement } from "./game/placement-legality.ts";
+import {
+  applyObjectivePlacement,
+  applySupplyPointPlacement,
+} from "./game/placement-application.ts";
+import {
+  evaluateObjectivePlacement,
+  evaluateSupplyPointPlacement,
+} from "./game/placement-legality.ts";
 
 type GameStateRenderer = (
   container: HTMLElement,
@@ -13,12 +19,8 @@ type GameStateRenderer = (
   presentation?: BoardPresentationState,
 ) => void;
 
-type ObjectivePlacementTarget = PlacementTarget & {
-  readonly kind: "objective";
-};
-
 export interface PendingSupportSelection {
-  readonly objective: ObjectivePlacementTarget;
+  readonly objective: BoardCoordinate;
   readonly eligibleSupplyPoints: readonly BoardCoordinate[];
 }
 
@@ -28,9 +30,74 @@ export interface BoardSession {
   readonly disconnect: () => void;
 }
 
-export interface BoardInteractionState {
+interface BoardInteractionState {
   readonly gameState: GameState;
   readonly pendingSupportSelection: PendingSupportSelection | null;
+}
+
+function processSupplySelection(
+  current: BoardInteractionState,
+  coordinate: BoardCoordinate,
+): BoardInteractionState {
+  const legality = evaluateSupplyPointPlacement(
+    current.gameState,
+    coordinate,
+  );
+
+  return legality.legal
+    ? {
+        gameState: applySupplyPointPlacement(
+          current.gameState,
+          coordinate,
+        ),
+        pendingSupportSelection: null,
+      }
+    : current;
+}
+
+function processObjectiveSelection(
+  current: BoardInteractionState,
+  coordinate: BoardCoordinate,
+): BoardInteractionState {
+  const legality = evaluateObjectivePlacement(current.gameState, coordinate);
+
+  return legality.legal
+    ? {
+        gameState: current.gameState,
+        pendingSupportSelection: {
+          objective: { ...coordinate },
+          eligibleSupplyPoints: legality.eligibleSupplyPoints,
+        },
+      }
+    : current;
+}
+
+function processObjectiveSupportSelection(
+  current: BoardInteractionState,
+  pendingSupportSelection: PendingSupportSelection,
+  target: PlacementTarget | null,
+): BoardInteractionState {
+  const selectedSupplyPointIsEligible =
+    target?.kind === "supply-point" &&
+    pendingSupportSelection.eligibleSupplyPoints.some((coordinate) =>
+      coordinatesMatch(coordinate, target),
+    );
+
+  if (!selectedSupplyPointIsEligible) {
+    return {
+      gameState: current.gameState,
+      pendingSupportSelection: null,
+    };
+  }
+
+  return {
+    gameState: applyObjectivePlacement(
+      current.gameState,
+      pendingSupportSelection.objective,
+      { row: target.row, column: target.column },
+    ),
+    pendingSupportSelection: null,
+  };
 }
 
 function coordinatesMatch(
@@ -83,75 +150,6 @@ export function getPlacementTarget(
   return { kind: expectedKind, row, column };
 }
 
-/** Applies one resolved board interaction without depending on the DOM. */
-export function processBoardInteraction(
-  current: BoardInteractionState,
-  target: PlacementTarget | null,
-): BoardInteractionState {
-  const { gameState, pendingSupportSelection } = current;
-
-  if (pendingSupportSelection !== null) {
-    const selectedSupplyPointIsEligible =
-      target?.kind === "supply-point" &&
-      pendingSupportSelection.eligibleSupplyPoints.some((coordinate) =>
-        coordinatesMatch(coordinate, target),
-      );
-
-    if (!selectedSupplyPointIsEligible) {
-      return {
-        gameState,
-        pendingSupportSelection: null,
-      };
-    }
-
-    const result = applyPlacement(
-      gameState,
-      pendingSupportSelection.objective,
-      { row: target.row, column: target.column },
-    );
-
-    return result.applied
-      ? {
-          gameState: result.state,
-          pendingSupportSelection: null,
-        }
-      : current;
-  }
-
-  if (target === null) {
-    return current;
-  }
-
-  const legality = evaluatePlacement(gameState, target);
-
-  if (!legality.legal) {
-    return current;
-  }
-
-  if (legality.kind === "objective") {
-    return {
-      gameState,
-      pendingSupportSelection: {
-        objective: {
-          kind: "objective",
-          row: target.row,
-          column: target.column,
-        },
-        eligibleSupplyPoints: legality.eligibleSupplyPoints,
-      },
-    };
-  }
-
-  const result = applyPlacement(gameState, target);
-
-  return result.applied
-    ? {
-        gameState: result.state,
-        pendingSupportSelection: null,
-      }
-    : current;
-}
-
 /** Owns the current browser GameState and delegates clicks from the container. */
 export function createBoardSession(
   container: HTMLElement,
@@ -172,17 +170,27 @@ export function createBoardSession(
 
   const handleClick = (event: MouseEvent): void => {
     const target = getPlacementTarget(event.target);
-    const nextInteractionState = processBoardInteraction(
-      interactionState,
-      target,
-    );
+    let nextInteractionState = interactionState;
 
-    if (nextInteractionState === interactionState) {
-      return;
+    if (interactionState.pendingSupportSelection !== null) {
+      nextInteractionState = processObjectiveSupportSelection(
+        interactionState,
+        interactionState.pendingSupportSelection,
+        target,
+      );
+    } else if (target?.kind === "supply-point") {
+      nextInteractionState = processSupplySelection(interactionState, target);
+    } else if (target?.kind === "objective") {
+      nextInteractionState = processObjectiveSelection(
+        interactionState,
+        target,
+      );
     }
 
-    interactionState = nextInteractionState;
-    renderCurrentState();
+    if (nextInteractionState !== interactionState) {
+      interactionState = nextInteractionState;
+      renderCurrentState();
+    }
   };
 
   container.addEventListener("click", handleClick);
@@ -190,8 +198,7 @@ export function createBoardSession(
 
   return {
     getGameState: () => interactionState.gameState,
-    getPendingSupportSelection: () =>
-      interactionState.pendingSupportSelection,
+    getPendingSupportSelection: () => interactionState.pendingSupportSelection,
     disconnect: () => container.removeEventListener("click", handleClick),
   };
 }
