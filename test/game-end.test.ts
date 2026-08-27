@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { isGameOver } from "../src/game/game-end.ts";
+import { completeTurn, isGameOver } from "../src/game/game-flow.ts";
 import {
   createInitialGameState,
   type GameState,
@@ -9,7 +9,6 @@ import {
   type Player,
   type PointState,
 } from "../src/game/game-state.ts";
-import { completeTurn } from "../src/game/turn-completion.ts";
 
 function placements(count: number): readonly PlacementTarget[] {
   return Array.from({ length: count }, (_, column) => ({

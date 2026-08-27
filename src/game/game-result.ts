@@ -1,4 +1,4 @@
-import { isGameOver } from "./game-end.ts";
+import { isGameOver } from "./game-flow.ts";
 import { countPieces } from "./game-state.ts";
 import type { GameState, Player } from "./game-state.ts";
 
