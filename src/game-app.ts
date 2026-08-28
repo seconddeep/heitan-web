@@ -29,6 +29,7 @@ export function createGameApp(
   app.innerHTML = `
     <main class="app-shell">
       <nav class="app-navigation" aria-label="Game">
+        <h1 class="app-navigation-title">Heitan</h1>
         <button
           class="app-navigation-item new-game-button"
           type="button"
@@ -43,7 +44,6 @@ export function createGameApp(
         >Rules</a>
       </nav>
       <header class="app-header">
-        <h1>Heitan</h1>
         <p class="current-board"></p>
       </header>
       <div class="board-container"></div>

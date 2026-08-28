@@ -41,6 +41,16 @@ function startGame(root: HTMLElement, configurationId: string): void {
 }
 
 describe("app navigation", () => {
+  test("places the game title in the top navigation", () => {
+    const root = createApp();
+    const title = root.querySelector("h1");
+
+    expect(title?.textContent).toBe("Heitan");
+    expect(title?.classList.contains("app-navigation-title")).toBe(true);
+    expect(title?.closest(".app-navigation")).not.toBeNull();
+    expect(root.querySelector(".app-header h1")).toBeNull();
+  });
+
   test("links to the canonical rules in a new tab", () => {
     const root = createApp();
     const rulesLink = root.querySelector<HTMLAnchorElement>(".rules-link");
