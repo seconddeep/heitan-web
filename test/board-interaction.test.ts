@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   createBoardSession,
   getPlacementTarget,
+  isUndoAction,
 } from "../src/board-interaction.ts";
 import { renderGameState } from "../src/board-renderer.ts";
 import {
@@ -50,6 +51,10 @@ function clickTarget(
   }
 
   target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+}
+
+function clickUndo(container: HTMLElement): void {
+  clickTarget(container, ".undo-button");
 }
 
 function createRenderedSession(state = createInitialGameState(3, 12)) {
@@ -190,6 +195,150 @@ describe("Supply Point interaction", () => {
     expect(session.getGameState()).toBe(initialState);
     expect(container.querySelector("svg")).toBe(svg);
     expect(render).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Undo interaction", () => {
+  test("is unavailable until a successful placement is made", () => {
+    const { container, render, session } = createRenderedSession();
+
+    const undoButton = container.querySelector<HTMLButtonElement>(
+      ".undo-button",
+    );
+    expect(undoButton?.disabled).toBe(true);
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+
+    expect(session.getGameState().turn.placements).toHaveLength(1);
+    expect(
+      container.querySelector<HTMLButtonElement>(".undo-button")?.disabled,
+    ).toBe(false);
+
+    clickUndo(container);
+
+    expect(session.getGameState().turn.placements).toEqual([]);
+    expect(session.getGameState().remainingPieces.black).toBe(12);
+    expect(session.getGameState().supplyPoints[1][2].pieces).toEqual([]);
+    expect(
+      container.querySelector<HTMLButtonElement>(".undo-button")?.disabled,
+    ).toBe(true);
+    expect(render).toHaveBeenCalledTimes(3);
+  });
+
+  test("steps backward through successful placements across turn completion", () => {
+    const initialState = createInitialGameState(3, 12);
+    const { container, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+    const afterFirstPlacement = session.getGameState();
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+    const afterSecondPlacement = session.getGameState();
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+
+    expect(session.getGameState().turn.activePlayer).toBe("white");
+    expect(session.getGameState().supplyPoints[1][1].player).toBe("black");
+
+    clickUndo(container);
+
+    expect(session.getGameState()).toBe(afterSecondPlacement);
+    expect(session.getGameState().turn.activePlayer).toBe("black");
+    expect(session.getGameState().turn.placements).toHaveLength(2);
+    expect(session.getGameState().supplyPoints[1][1].pieces).toEqual([
+      "black",
+      "black",
+    ]);
+    expect(session.getGameState().supplyPoints[1][1].player).toBeNull();
+    expect(session.getGameState().supplyPoints[1][2].pieces).toEqual([]);
+    expect(session.getGameState().remainingPieces.black).toBe(10);
+
+    clickUndo(container);
+    expect(session.getGameState()).toBe(afterFirstPlacement);
+
+    clickUndo(container);
+    expect(session.getGameState()).toBe(initialState);
+  });
+
+  test("restores an Objective placement and its used Supply Point", () => {
+    const initialState = replaceSupplyPoint(
+      createInitialGameState(3, 12),
+      1,
+      1,
+      controlledSupplyPoint(),
+    );
+    const { container, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="1"]',
+    );
+    expect(session.getGameState().turn.usedSupplyPoints).toEqual([
+      { row: 1, column: 1 },
+    ]);
+
+    clickUndo(container);
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(session.getGameState().objectives[1][1].pieces).toEqual([]);
+    expect(session.getGameState().turn.usedSupplyPoints).toEqual([]);
+    expect(session.getGameState().remainingPieces.black).toBe(12);
+  });
+
+  test("clears pending support selection without adding interaction history", () => {
+    const initialState = createMultipleSupportState();
+    const { container, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="0"][data-column="0"]',
+    );
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+    expect(session.getPendingSupportSelection()).not.toBeNull();
+
+    clickUndo(container);
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(session.getPendingSupportSelection()).toBeNull();
+    expect(
+      container.querySelector<HTMLButtonElement>(".undo-button")?.disabled,
+    ).toBe(true);
+  });
+
+  test("illegal and cancelled selections do not create history entries", () => {
+    const initialState = createMultipleSupportState();
+    const { container, session } = createRenderedSession(initialState);
+
+    clickTarget(
+      container,
+      '.objective-target[data-row="1"][data-column="1"]',
+    );
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="0"][data-column="0"]',
+    );
+
+    expect(session.getGameState()).toBe(initialState);
+    expect(
+      container.querySelector<HTMLButtonElement>(".undo-button")?.disabled,
+    ).toBe(true);
   });
 });
 
@@ -526,6 +675,28 @@ describe("completed game flow", () => {
 });
 
 describe("hit-target validation", () => {
+  test("finds an Undo control from a nested SVG target", () => {
+    const container = document.createElement("div");
+    const undoButton = document.createElement("button");
+    const icon = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    undoButton.dataset.action = "undo";
+    undoButton.append(icon);
+    container.append(undoButton);
+
+    expect(isUndoAction(icon, container)).toBe(true);
+  });
+
+  test("rejects an Undo control outside the delegated container", () => {
+    const container = document.createElement("div");
+    const undoButton = document.createElement("button");
+    undoButton.dataset.action = "undo";
+
+    expect(isUndoAction(undoButton, container)).toBe(false);
+  });
+
   test.each([
     ["grid line", ".board-grid line"],
     ["status", ".game-status"],

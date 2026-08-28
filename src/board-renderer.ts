@@ -36,6 +36,7 @@ export interface BoardSvgLayout {
 
 export interface BoardPresentationState {
   readonly eligibleSupplyPoints?: readonly BoardCoordinate[];
+  readonly canUndo?: boolean;
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
@@ -398,6 +399,24 @@ export function renderGameStatus(state: GameState): HTMLElement {
   return status;
 }
 
+export function renderGameControls(
+  presentation: BoardPresentationState = {},
+): HTMLElement {
+  const controls = document.createElement("div");
+  controls.classList.add("game-controls");
+
+  const undoButton = document.createElement("button");
+  undoButton.classList.add("undo-button");
+  undoButton.type = "button";
+  undoButton.dataset.action = "undo";
+  undoButton.textContent = "Undo";
+  undoButton.disabled = presentation.canUndo !== true;
+
+  controls.append(undoButton);
+
+  return controls;
+}
+
 export function renderFinalResult(state: GameState): HTMLElement | null {
   if (!isGameOver(state)) {
     return null;
@@ -459,7 +478,10 @@ export function renderGameState(
   presentation: BoardPresentationState = {},
 ): void {
   const result = renderFinalResult(state);
-  const children: Node[] = [renderGameStatus(state)];
+  const children: Node[] = [
+    renderGameStatus(state),
+    renderGameControls(presentation),
+  ];
 
   if (result !== null) {
     children.push(result);

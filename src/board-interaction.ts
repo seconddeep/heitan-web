@@ -159,12 +159,28 @@ export function getPlacementTarget(
   return { kind: expectedKind, row, column };
 }
 
+export function isUndoAction(
+  eventTarget: EventTarget | null,
+  container: HTMLElement,
+): boolean {
+  if (!(eventTarget instanceof Element)) {
+    return false;
+  }
+
+  const undoTarget = eventTarget.closest<HTMLElement>(
+    '[data-action="undo"]',
+  );
+
+  return undoTarget !== null && container.contains(undoTarget);
+}
+
 /** Owns the current browser GameState and delegates clicks from the container. */
 export function createBoardSession(
   container: HTMLElement,
   initialState: GameState,
   render: GameStateRenderer = renderGameState,
 ): BoardSession {
+  const placementHistory: GameState[] = [];
   let interactionState: BoardInteractionState = {
     gameState: initialState,
     pendingSupportSelection: null,
@@ -172,12 +188,27 @@ export function createBoardSession(
 
   const renderCurrentState = (): void => {
     render(container, interactionState.gameState, {
+      canUndo: placementHistory.length > 0,
       eligibleSupplyPoints:
         interactionState.pendingSupportSelection?.eligibleSupplyPoints,
     });
   };
 
   const handleClick = (event: MouseEvent): void => {
+    if (isUndoAction(event.target, container)) {
+      const previousState = placementHistory.pop();
+
+      if (previousState !== undefined) {
+        interactionState = {
+          gameState: previousState,
+          pendingSupportSelection: null,
+        };
+        renderCurrentState();
+      }
+
+      return;
+    }
+
     if (isGameOver(interactionState.gameState)) {
       return;
     }
@@ -201,6 +232,10 @@ export function createBoardSession(
     }
 
     if (nextInteractionState !== interactionState) {
+      if (nextInteractionState.gameState !== interactionState.gameState) {
+        placementHistory.push(interactionState.gameState);
+      }
+
       interactionState = {
         ...nextInteractionState,
         gameState: completeTurnAfterThirdPlacement(
