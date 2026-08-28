@@ -8,6 +8,10 @@ import { isGameOver } from "./game/game-flow.ts";
 import { calculateGameResult } from "./game/game-result.ts";
 import { countPieces } from "./game/game-state.ts";
 import type { GameState, Player, PointState } from "./game/game-state.ts";
+import {
+  evaluateObjectivePlacement,
+  evaluateSupplyPointPlacement,
+} from "./game/placement-legality.ts";
 
 export interface SvgPosition {
   readonly row: number;
@@ -35,13 +39,13 @@ export interface BoardPresentationState {
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
-const supplyPointMarkerRadius = 0.09;
+const legalPlacementIndicatorRadius = 0.07;
 const supplyPointHitRadius = 0.3;
 const pieceRadius = 0.24;
 const pieceStackStep = 0.1;
 // A legal point can hold five pieces (3 for one player and 2 for the other).
-// The padding contains a row-0 stack plus a small allowance for its stroke.
-const viewBoxPadding = 0.66;
+// The padding contains a hit target centered on a row-0 five-piece stack.
+const viewBoxPadding = 0.74;
 const placementsPerTurn = 3;
 
 export function createBoardSvgLayout(cellsPerSide: number): BoardSvgLayout {
@@ -149,10 +153,7 @@ function appendPointPieces(
     const piece = createSvgElement("circle");
     piece.classList.add("piece", `${player}-piece`);
     piece.setAttribute("cx", String(position.x));
-    piece.setAttribute(
-      "cy",
-      String(position.y - stackIndex * pieceStackStep),
-    );
+    piece.setAttribute("cy", String(position.y - stackIndex * pieceStackStep));
     piece.setAttribute("r", String(pieceRadius));
     piece.dataset.player = player;
     piece.dataset.stackIndex = String(stackIndex);
@@ -190,6 +191,92 @@ function coordinatesMatch(
   return first.row === second.row && first.column === second.column;
 }
 
+function getTopPieceCenterY(
+  point: PointState,
+  position: SvgPosition,
+): number {
+  const topPieceIndex = Math.max(point.pieces.length - 1, 0);
+
+  return position.y - topPieceIndex * pieceStackStep;
+}
+
+function appendGuideIndicator(
+  guideLayer: SVGGElement,
+  point: PointState,
+  position: SvgPosition,
+  kind: "supply-point" | "objective",
+  feedback: "legal-placement" | "eligible-support",
+): void {
+  const indicator = createSvgElement("circle");
+  indicator.classList.add("guide-indicator");
+
+  if (feedback === "legal-placement") {
+    indicator.dataset.placementLegal = "true";
+  } else {
+    indicator.dataset.supportEligible = "true";
+  }
+
+  indicator.setAttribute("cx", String(position.x));
+  indicator.setAttribute(
+    "cy",
+    String(getTopPieceCenterY(point, position)),
+  );
+  indicator.setAttribute("r", String(legalPlacementIndicatorRadius));
+  setCoordinateMetadata(indicator, position, kind);
+  guideLayer.append(indicator);
+}
+
+function appendGuideIndicators(
+  guideLayer: SVGGElement,
+  state: GameState,
+  layout: BoardSvgLayout,
+  presentation: BoardPresentationState,
+): void {
+  if (presentation.eligibleSupplyPoints !== undefined) {
+    for (const position of layout.supplyPoints) {
+      if (
+        presentation.eligibleSupplyPoints.some((coordinate) =>
+          coordinatesMatch(coordinate, position),
+        )
+      ) {
+        appendGuideIndicator(
+          guideLayer,
+          getPointState(state, position, "supply-point"),
+          position,
+          "supply-point",
+          "eligible-support",
+        );
+      }
+    }
+
+    return;
+  }
+
+  for (const position of layout.objectives) {
+    if (evaluateObjectivePlacement(state, position).legal) {
+      appendGuideIndicator(
+        guideLayer,
+        getPointState(state, position, "objective"),
+        position,
+        "objective",
+        "legal-placement",
+      );
+    }
+  }
+
+  for (const position of layout.supplyPoints) {
+    if (evaluateSupplyPointPlacement(state, position).legal) {
+      appendGuideIndicator(
+        guideLayer,
+        getPointState(state, position, "supply-point"),
+        position,
+        "supply-point",
+        "legal-placement",
+      );
+    }
+  }
+}
+
 /** Renders a fresh SVG projection of GameState plus transient presentation. */
 export function renderBoard(
   state: GameState,
@@ -224,29 +311,19 @@ export function renderBoard(
     grid.append(line);
   }
 
-  const markerLayer = createSvgElement("g");
-  markerLayer.classList.add("supply-point-marker-layer");
   const pieceLayer = createSvgElement("g");
   pieceLayer.classList.add("piece-layer");
+  const guideLayer = createSvgElement("g");
+  guideLayer.classList.add("guide-layer");
   const targetLayer = createSvgElement("g");
   targetLayer.classList.add("hit-target-layer");
+
+  appendGuideIndicators(guideLayer, state, layout, presentation);
 
   for (const position of layout.supplyPoints) {
     const point = getPointState(state, position, "supply-point");
 
-    const marker = createSvgElement("circle");
-    marker.classList.add("supply-point");
-    marker.setAttribute("cx", String(position.x));
-    marker.setAttribute("cy", String(position.y));
-    marker.setAttribute("r", String(supplyPointMarkerRadius));
-    markerLayer.append(marker);
-
-    appendPointPieces(
-      pieceLayer,
-      position,
-      "supply-point",
-      point,
-    );
+    appendPointPieces(pieceLayer, position, "supply-point", point);
   }
 
   for (const position of layout.objectives) {
@@ -260,30 +337,23 @@ export function renderBoard(
     target.setAttribute("width", "1");
     target.setAttribute("height", "1");
     setCoordinateMetadata(target, position, "objective");
+
     targetLayer.append(target);
   }
 
   for (const position of layout.supplyPoints) {
+    const point = getPointState(state, position, "supply-point");
     const target = createSvgElement("circle");
     target.classList.add("supply-point-target");
     target.setAttribute("cx", String(position.x));
-    target.setAttribute("cy", String(position.y));
+    target.setAttribute("cy", String(getTopPieceCenterY(point, position)));
     target.setAttribute("r", String(supplyPointHitRadius));
     setCoordinateMetadata(target, position, "supply-point");
-
-    if (
-      presentation.eligibleSupplyPoints?.some((coordinate) =>
-        coordinatesMatch(coordinate, position),
-      )
-    ) {
-      target.classList.add("eligible-support");
-      target.dataset.supportEligible = "true";
-    }
 
     targetLayer.append(target);
   }
 
-  svg.append(grid, markerLayer, pieceLayer, targetLayer);
+  svg.append(grid, pieceLayer, guideLayer, targetLayer);
 
   return svg;
 }
@@ -341,9 +411,8 @@ export function renderFinalResult(state: GameState): HTMLElement | null {
 
   const heading = document.createElement("h2");
   heading.classList.add("game-result-heading");
-  heading.textContent = result.winner === null
-    ? "Draw"
-    : `${capitalize(result.winner)} wins`;
+  heading.textContent =
+    result.winner === null ? "Draw" : `${capitalize(result.winner)} wins`;
 
   const table = document.createElement("table");
   table.classList.add("objective-scores");

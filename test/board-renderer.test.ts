@@ -103,15 +103,14 @@ describe.each([4, 7])("%i by %i rendered board", (cellsPerSide) => {
 
   test("preserves responsive SVG sizing", () => {
     expect(svg.getAttribute("viewBox")).toBe(
-      `-0.66 -0.66 ${cellsPerSide + 1.32} ${cellsPerSide + 1.32}`,
+      `-0.74 -0.74 ${cellsPerSide + 1.48} ${cellsPerSide + 1.48}`,
     );
     expect(svg.getAttribute("preserveAspectRatio")).toBe("xMidYMid meet");
   });
 
-  test("renders separate markers and coordinate hit targets", () => {
-    expect(svg.querySelectorAll(".supply-point")).toHaveLength(
-      (cellsPerSide + 1) ** 2,
-    );
+  test("renders coordinate hit targets without Supply Point markers", () => {
+    expect(svg.querySelector(".supply-point")).toBeNull();
+    expect(svg.querySelector(".supply-point-marker-layer")).toBeNull();
     expect(svg.querySelectorAll(".supply-point-target")).toHaveLength(
       (cellsPerSide + 1) ** 2,
     );
@@ -154,6 +153,188 @@ describe.each([4, 7])("%i by %i rendered board", (cellsPerSide) => {
         column: String(index % cellsPerSide),
       });
     }
+  });
+});
+
+describe("legal placement target rendering", () => {
+  test.each([4, 7])(
+    "derives legal Supply Point targets for a %i-cell board",
+    (cellsPerSide) => {
+      const svg = renderBoard(createInitialGameState(cellsPerSide, 12));
+
+      expect(
+        svg.querySelectorAll(
+          '.guide-indicator[data-kind="supply-point"][data-placement-legal="true"]',
+        ),
+      ).toHaveLength((cellsPerSide + 1) ** 2);
+      expect(
+        svg.querySelectorAll(
+          '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][r="0.07"]',
+        ),
+      ).toHaveLength((cellsPerSide + 1) ** 2);
+      expect(
+        svg.querySelectorAll(
+          '.guide-indicator[data-placement-legal="true"][data-kind="objective"]',
+        ),
+      )
+        .toHaveLength(0);
+    },
+  );
+
+  test("derives legal Objectives from their eligible supporting Supply Points", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      supplyPoints: replacePoint(
+        initialState.supplyPoints,
+        1,
+        1,
+        pointState(["black"], "black"),
+      ),
+    };
+    const svg = renderBoard(state);
+    const legalObjectiveCoordinates = Array.from(
+      svg.querySelectorAll<SVGCircleElement>(
+        '.guide-indicator[data-placement-legal="true"][data-kind="objective"]',
+      ),
+    ).map((target) => [target.dataset.row, target.dataset.column]);
+
+    expect(legalObjectiveCoordinates).toEqual([
+      ["0", "0"],
+      ["0", "1"],
+      ["1", "0"],
+      ["1", "1"],
+    ]);
+    expect(
+      svg.querySelectorAll(
+        '.guide-indicator[data-placement-legal="true"][data-kind="objective"][r="0.07"]',
+      ),
+    ).toHaveLength(4);
+    expect(svg.querySelector('[data-support-eligible="true"]')).toBeNull();
+  });
+
+  test("shows only eligible supports during Objective support selection", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      supplyPoints: replacePoint(
+        initialState.supplyPoints,
+        1,
+        1,
+        pointState(["black"], "black"),
+      ),
+    };
+    const svg = renderBoard(state, {
+      eligibleSupplyPoints: [{ row: 1, column: 1 }],
+    });
+
+    expect(svg.querySelector('[data-placement-legal="true"]')).toBeNull();
+    expect(
+      svg.querySelectorAll(
+        '.guide-indicator[data-support-eligible="true"][r="0.07"]',
+      ),
+    ).toHaveLength(1);
+    expect(
+      svg.querySelector(
+        '.guide-indicator[data-support-eligible="true"][data-row="1"][data-column="1"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  test("does not mark targets rejected by placement legality", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      remainingPieces: { black: 7, white: 12 },
+      supplyPoints: replacePoint(
+        replacePoint(
+          initialState.supplyPoints,
+          0,
+          0,
+          pointState(["black", "black", "black"], "black"),
+        ),
+        0,
+        1,
+        pointState(["black", "black"], "black"),
+      ),
+      turn: {
+        ...initialState.turn,
+        placements: [
+          { kind: "supply-point", row: 0, column: 1 },
+          { kind: "supply-point", row: 0, column: 1 },
+        ],
+      },
+    };
+    const svg = renderBoard(state);
+
+    for (const [row, column] of [[0, 0], [0, 1]] as const) {
+      const indicator = svg.querySelector(
+        `.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][data-row="${row}"][data-column="${column}"]`,
+      );
+      expect(indicator).toBeNull();
+    }
+  });
+
+  test("positions guides at the center of each top stacked piece", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      supplyPoints: replacePoint(
+        replacePoint(
+          initialState.supplyPoints,
+          0,
+          0,
+          pointState(["black", "white"], "black"),
+        ),
+        1,
+        1,
+        pointState(["black"], "black"),
+      ),
+      objectives: replacePoint(
+        initialState.objectives,
+        1,
+        1,
+        pointState(["white", "black"], "black"),
+      ),
+    };
+    const svg = renderBoard(state);
+
+    for (const [kind, row, column] of [
+      ["supply-point", 0, 0],
+      ["objective", 1, 1],
+    ] as const) {
+      const stack = svg.querySelector(
+        selector("piece-stack", kind, row, column),
+      );
+      const topPiece = stack?.lastElementChild;
+      const guide = svg.querySelector(
+        `.guide-indicator[data-kind="${kind}"][data-row="${row}"][data-column="${column}"]`,
+      );
+
+      expect(guide?.getAttribute("cy")).toBe(topPiece?.getAttribute("cy"));
+
+      if (kind === "supply-point") {
+        const target = svg.querySelector(
+          selector("supply-point-target", kind, row, column),
+        );
+
+        expect(target?.getAttribute("cy")).toBe(
+          topPiece?.getAttribute("cy"),
+        );
+      }
+    }
+  });
+
+  test("clears legal placement feedback after game end", () => {
+    const initialState = createInitialGameState(3, 1);
+    const terminalState: GameState = {
+      ...initialState,
+      remainingPieces: { black: 0, white: 0 },
+    };
+    const svg = renderBoard(terminalState);
+
+    expect(svg.querySelector('[data-placement-legal="true"]')).toBeNull();
+    expect(svg.querySelector("[data-placement-legal]")).toBeNull();
   });
 });
 
@@ -234,10 +415,10 @@ describe("Supply Point rendering", () => {
   };
   const svg = renderBoard(state);
 
-  test("keeps an empty Supply marker free of pieces", () => {
+  test("keeps an empty Supply Point unmarked and free of pieces", () => {
     expect(
       svg.querySelector('.supply-point[cx="0"][cy="0"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       svg.querySelector(selector("piece-stack", "supply-point", 0, 0)),
     ).toBeNull();
