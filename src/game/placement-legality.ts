@@ -8,8 +8,6 @@ import { countPieces } from "./game-state.ts";
 
 type CommonPlacementIllegalReason =
   | "invalid-target"
-  | "no-remaining-pieces"
-  | "turn-placement-limit-reached"
   | "point-secured"
   | "player-point-limit-reached";
 
@@ -68,19 +66,11 @@ function evaluateCommonPlacement(
     return { legal: false, reason: "invalid-target" };
   }
 
-  const activePlayer = state.turn.activePlayer;
-
-  if (state.remainingPieces[activePlayer] <= 0) {
-    return { legal: false, reason: "no-remaining-pieces" };
-  }
-
-  if (state.turn.placements.length >= 3) {
-    return { legal: false, reason: "turn-placement-limit-reached" };
-  }
-
   if (targetPoint.secured) {
     return { legal: false, reason: "point-secured" };
   }
+
+  const activePlayer = state.turn.activePlayer;
 
   if (countPieces(targetPoint.pieces, activePlayer) >= 3) {
     return { legal: false, reason: "player-point-limit-reached" };
