@@ -20,5 +20,5 @@ export const defaultGameConfiguration = supportedGameConfigurations[1];
 export function getTotalTurnCount(
   configuration: GameConfiguration,
 ): number {
-  return Math.ceil((configuration.piecesPerPlayer * 2) / 3);
+  return configuration.piecesPerPlayer / 3;
 }

@@ -371,9 +371,36 @@ function capitalize(player: Player): string {
   return `${player[0].toUpperCase()}${player.slice(1)}`;
 }
 
+export interface TurnDisplay {
+  readonly currentTurn: number;
+  readonly totalTurns: number;
+  readonly placements: number;
+}
+
+export function deriveTurnDisplay(
+  state: GameState,
+  configuration: GameConfiguration,
+): TurnDisplay {
+  const remainingPieces = state.remainingPieces[state.turn.activePlayer];
+  const totalTurns = getTotalTurnCount(configuration);
+  const currentTurn = Math.min(
+    totalTurns,
+    Math.floor(
+      (configuration.piecesPerPlayer - remainingPieces) /
+        placementsPerTurn,
+    ) + 1,
+  );
+
+  return {
+    currentTurn,
+    totalTurns,
+    placements: state.turn.placements.length,
+  };
+}
+
 export function renderGameStatus(
   state: GameState,
-  configuration?: GameConfiguration,
+  configuration: GameConfiguration,
 ): HTMLElement {
   const status = document.createElement("section");
   status.classList.add("game-status");
@@ -387,36 +414,17 @@ export function renderGameStatus(
 
   const details = document.createElement("div");
   details.classList.add("game-status-details");
+  const turnDisplay = deriveTurnDisplay(state, configuration);
 
-  const blackRemaining = document.createElement("span");
-  blackRemaining.classList.add("remaining-pieces", "remaining-black");
-  blackRemaining.textContent = `Black: ${state.remainingPieces.black}`;
-
-  const whiteRemaining = document.createElement("span");
-  whiteRemaining.classList.add("remaining-pieces", "remaining-white");
-  whiteRemaining.textContent = `White: ${state.remainingPieces.white}`;
+  const turnCount = document.createElement("span");
+  turnCount.classList.add("turn-count");
+  turnCount.textContent = `Turn ${turnDisplay.currentTurn} / ${turnDisplay.totalTurns}`;
 
   const placementCount = document.createElement("span");
   placementCount.classList.add("placement-count");
-  placementCount.textContent = `Placements: ${state.turn.placements.length} / ${placementsPerTurn}`;
+  placementCount.textContent = `Placements ${turnDisplay.placements} / ${placementsPerTurn}`;
 
-  details.append(blackRemaining, whiteRemaining, placementCount);
-
-  if (configuration !== undefined) {
-    const totalTurns = getTotalTurnCount(configuration);
-    const placedPieces =
-      configuration.piecesPerPlayer * 2 -
-      state.remainingPieces.black -
-      state.remainingPieces.white;
-    const currentTurn = isGameOver(state)
-      ? totalTurns
-      : Math.min(Math.floor(placedPieces / placementsPerTurn) + 1, totalTurns);
-    const turnCount = document.createElement("span");
-    turnCount.classList.add("turn-count");
-    turnCount.textContent = `Turn: ${currentTurn} / ${totalTurns}`;
-    details.append(turnCount);
-  }
-
+  details.append(turnCount, placementCount);
   status.append(activePlayer, details);
 
   return status;
@@ -499,7 +507,7 @@ export function renderGameState(
   container: HTMLElement,
   state: GameState,
   presentation: BoardPresentationState = {},
-  configuration?: GameConfiguration,
+  configuration: GameConfiguration,
 ): void {
   const result = renderFinalResult(state);
   const children: Node[] = [

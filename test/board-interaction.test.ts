@@ -7,12 +7,23 @@ import {
   getPlacementTarget,
   isUndoAction,
 } from "../src/board-interaction.ts";
-import { renderGameState } from "../src/board-renderer.ts";
+import {
+  renderGameState,
+  type BoardPresentationState,
+} from "../src/board-renderer.ts";
 import {
   createInitialGameState,
   type GameState,
   type PointState,
 } from "../src/game/game-state.ts";
+import type { GameConfiguration } from "../src/game-configuration.ts";
+
+const configuration: GameConfiguration = {
+  id: "test-3x3",
+  label: "3 × 3",
+  cellsPerSide: 3,
+  piecesPerPlayer: 12,
+};
 
 function replaceSupplyPoint(
   state: GameState,
@@ -57,10 +68,25 @@ function clickUndo(container: HTMLElement): void {
   clickTarget(container, ".undo-button");
 }
 
-function createRenderedSession(state = createInitialGameState(3, 12)) {
+function createRenderedSession(
+  state = createInitialGameState(3, 12),
+  gameConfiguration: GameConfiguration = configuration,
+) {
   const container = document.createElement("div");
   document.body.append(container);
-  const render = vi.fn(renderGameState);
+  const render = vi.fn(
+    (
+      currentContainer: HTMLElement,
+      currentState: GameState,
+      presentation?: BoardPresentationState,
+    ) =>
+      renderGameState(
+        currentContainer,
+        currentState,
+        presentation,
+        gameConfiguration,
+      ),
+  );
   const session = createBoardSession(container, state, render);
   sessions.push(session);
 
@@ -102,11 +128,11 @@ describe("Supply Point interaction", () => {
       { kind: "supply-point", row: 1, column: 2 },
     ]);
     expect(render).toHaveBeenCalledTimes(2);
-    expect(container.querySelector(".remaining-black")?.textContent).toBe(
-      "Black: 11",
+    expect(container.querySelector(".turn-count")?.textContent).toBe(
+      "Turn 1 / 4",
     );
     expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "Placements: 1 / 3",
+      "Placements 1 / 3",
     );
   });
 
@@ -161,7 +187,7 @@ describe("Supply Point interaction", () => {
     expect(currentState.supplyPoints[1][2].player).toBe("black");
     expect(currentState.supplyPoints[2][2].player).toBe("black");
     expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "Placements: 0 / 3",
+      "Placements 0 / 3",
     );
     expect(container.querySelector(".active-player-status")?.textContent).toBe(
       "White to move",
@@ -636,7 +662,12 @@ describe("completed game flow", () => {
       ...createInitialGameState(3, 3),
       remainingPieces: { black: 3, white: 0 },
     };
-    const { container, render, session } = createRenderedSession(initialState);
+    const { container, render, session } = createRenderedSession(initialState, {
+      id: "test-final-turn",
+      label: "3 × 3",
+      cellsPerSide: 3,
+      piecesPerPlayer: 3,
+    });
 
     clickTarget(
       container,
