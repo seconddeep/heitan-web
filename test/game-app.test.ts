@@ -40,6 +40,23 @@ function startGame(root: HTMLElement, configurationId: string): void {
   );
 }
 
+describe("app navigation", () => {
+  test("links to the canonical rules in a new tab", () => {
+    const root = createApp();
+    const rulesLink = root.querySelector<HTMLAnchorElement>(".rules-link");
+
+    expect(rulesLink?.textContent).toBe("Rules");
+    expect(rulesLink?.href).toBe(
+      "https://github.com/seconddeep/heitan-ludii/blob/main/docs/rules.md",
+    );
+    expect(rulesLink?.target).toBe("_blank");
+    expect(rulesLink?.rel).toBe("noopener noreferrer");
+    expect(rulesLink?.closest(".app-navigation")).toContain(
+      root.querySelector(".new-game-button"),
+    );
+  });
+});
+
 describe("new-game flow", () => {
   test("starts with the canonical 4 × 4 configuration", () => {
     const root = createApp();

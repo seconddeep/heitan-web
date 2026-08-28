@@ -40,11 +40,17 @@ body {
   font-size: 0.95rem;
 }
 
-.new-game-button {
+.app-navigation {
   position: fixed;
   z-index: 10;
   top: 0.75rem;
   left: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.app-navigation-item {
   min-height: auto;
   padding: 0.25rem;
   border: 0;
@@ -53,6 +59,11 @@ body {
   background: transparent;
   font: inherit;
   font-size: 0.9rem;
+  line-height: normal;
+  text-decoration: none;
+}
+
+.new-game-button {
   cursor: pointer;
 }
 
@@ -76,14 +87,14 @@ body {
   background: #e9e5da;
 }
 
-.new-game-button:focus-visible,
+.app-navigation-item:focus-visible,
 .new-game-dialog select:focus-visible,
 .new-game-dialog button:focus-visible {
   outline: 3px solid rgb(60 115 150 / 45%);
   outline-offset: 2px;
 }
 
-.new-game-button:hover {
+.app-navigation-item:hover {
   color: #17221b;
   background: rgb(255 253 246 / 85%);
 }
@@ -282,7 +293,7 @@ body {
 
 @media (max-width: 36rem) {
   .app-shell {
-    padding: 2rem 1rem;
+    padding: 3rem 1rem 2rem;
   }
 
   .board-container {

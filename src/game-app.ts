@@ -28,12 +28,20 @@ export function createGameApp(
 
   app.innerHTML = `
     <main class="app-shell">
-      <button
-        class="new-game-button"
-        type="button"
-        aria-haspopup="dialog"
-        data-action="open-new-game"
-      >New Game</button>
+      <nav class="app-navigation" aria-label="Game">
+        <button
+          class="app-navigation-item new-game-button"
+          type="button"
+          aria-haspopup="dialog"
+          data-action="open-new-game"
+        >New Game</button>
+        <a
+          class="app-navigation-item rules-link"
+          href="https://github.com/seconddeep/heitan-ludii/blob/main/docs/rules.md"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Rules</a>
+      </nav>
       <header class="app-header">
         <h1>Heitan</h1>
         <p class="current-board"></p>
