@@ -15,6 +15,7 @@ import {
   type Player,
   type PointState,
 } from "../src/game/game-state.ts";
+import type { GameConfiguration } from "../src/game-configuration.ts";
 
 function pointState(
   pieces: readonly Player[],
@@ -562,7 +563,13 @@ test("renders turn and remaining-piece status directly from GameState", () => {
       ],
     },
   };
-  const status = renderGameStatus(state);
+  const configuration: GameConfiguration = {
+    id: "3x3",
+    label: "3 × 3",
+    cellsPerSide: 3,
+    piecesPerPlayer: 12,
+  };
+  const status = renderGameStatus(state, configuration);
 
   expect(status.querySelector(".active-player-status")?.textContent).toBe(
     "White to move",
@@ -575,6 +582,9 @@ test("renders turn and remaining-piece status directly from GameState", () => {
   );
   expect(status.querySelector(".placement-count")?.textContent).toBe(
     "Placements: 2 / 3",
+  );
+  expect(status.querySelector(".turn-count")?.textContent).toBe(
+    "Turn: 3 / 8",
   );
 });
 

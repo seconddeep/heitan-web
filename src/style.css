@@ -40,6 +40,90 @@ body {
   font-size: 0.95rem;
 }
 
+.new-game-button {
+  position: fixed;
+  z-index: 10;
+  top: 0.75rem;
+  left: 0.75rem;
+  min-height: auto;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 0.2rem;
+  color: #39463d;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.new-game-dialog select,
+.new-game-dialog button {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #879087;
+  border-radius: 0.4rem;
+  color: #17221b;
+  background: #fffdf6;
+  font: inherit;
+}
+
+.new-game-dialog button {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-game-dialog button:hover {
+  background: #e9e5da;
+}
+
+.new-game-button:focus-visible,
+.new-game-dialog select:focus-visible,
+.new-game-dialog button:focus-visible {
+  outline: 3px solid rgb(60 115 150 / 45%);
+  outline-offset: 2px;
+}
+
+.new-game-button:hover {
+  color: #17221b;
+  background: rgb(255 253 246 / 85%);
+}
+
+.new-game-dialog {
+  box-sizing: border-box;
+  width: min(calc(100% - 2rem), 28rem);
+  padding: 1.5rem;
+  border: 1px solid #cec8b8;
+  border-radius: 0.75rem;
+  color: #17221b;
+  background: #fffdf6;
+  box-shadow: 0 1.5rem 4rem rgb(23 34 27 / 25%);
+}
+
+.new-game-dialog::backdrop {
+  background: rgb(23 34 27 / 55%);
+}
+
+.new-game-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.new-game-form h2,
+.new-game-form p {
+  margin: 0;
+}
+
+.new-game-form p {
+  color: #536057;
+}
+
+.new-game-dialog-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
 .board-container {
   box-sizing: border-box;
   max-width: 40rem;
