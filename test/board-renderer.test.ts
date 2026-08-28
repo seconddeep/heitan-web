@@ -103,7 +103,7 @@ describe.each([4, 7])("%i by %i rendered board", (cellsPerSide) => {
 
   test("preserves responsive SVG sizing", () => {
     expect(svg.getAttribute("viewBox")).toBe(
-      `-0.66 -0.66 ${cellsPerSide + 1.32} ${cellsPerSide + 1.32}`,
+      `-0.74 -0.74 ${cellsPerSide + 1.48} ${cellsPerSide + 1.48}`,
     );
     expect(svg.getAttribute("preserveAspectRatio")).toBe("xMidYMid meet");
   });
@@ -169,7 +169,7 @@ describe("legal placement target rendering", () => {
       ).toHaveLength((cellsPerSide + 1) ** 2);
       expect(
         svg.querySelectorAll(
-          '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][r="0.09"]',
+          '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][r="0.07"]',
         ),
       ).toHaveLength((cellsPerSide + 1) ** 2);
       expect(
@@ -207,7 +207,7 @@ describe("legal placement target rendering", () => {
     ]);
     expect(
       svg.querySelectorAll(
-        '.guide-indicator[data-placement-legal="true"][data-kind="objective"][r="0.09"]',
+        '.guide-indicator[data-placement-legal="true"][data-kind="objective"][r="0.07"]',
       ),
     ).toHaveLength(4);
     expect(svg.querySelector('[data-support-eligible="true"]')).toBeNull();
@@ -231,7 +231,7 @@ describe("legal placement target rendering", () => {
     expect(svg.querySelector('[data-placement-legal="true"]')).toBeNull();
     expect(
       svg.querySelectorAll(
-        '.guide-indicator[data-support-eligible="true"][r="0.09"]',
+        '.guide-indicator[data-support-eligible="true"][r="0.07"]',
       ),
     ).toHaveLength(1);
     expect(
@@ -272,6 +272,56 @@ describe("legal placement target rendering", () => {
         `.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][data-row="${row}"][data-column="${column}"]`,
       );
       expect(indicator).toBeNull();
+    }
+  });
+
+  test("positions guides at the center of each top stacked piece", () => {
+    const initialState = createInitialGameState(3, 12);
+    const state: GameState = {
+      ...initialState,
+      supplyPoints: replacePoint(
+        replacePoint(
+          initialState.supplyPoints,
+          0,
+          0,
+          pointState(["black", "white"], "black"),
+        ),
+        1,
+        1,
+        pointState(["black"], "black"),
+      ),
+      objectives: replacePoint(
+        initialState.objectives,
+        1,
+        1,
+        pointState(["white", "black"], "black"),
+      ),
+    };
+    const svg = renderBoard(state);
+
+    for (const [kind, row, column] of [
+      ["supply-point", 0, 0],
+      ["objective", 1, 1],
+    ] as const) {
+      const stack = svg.querySelector(
+        selector("piece-stack", kind, row, column),
+      );
+      const topPiece = stack?.lastElementChild;
+      const guide = svg.querySelector(
+        `.guide-indicator[data-kind="${kind}"][data-row="${row}"][data-column="${column}"]`,
+      );
+
+      expect(guide?.getAttribute("cy")).toBe(topPiece?.getAttribute("cy"));
+
+      if (kind === "supply-point") {
+        const target = svg.querySelector(
+          selector("supply-point-target", kind, row, column),
+        );
+
+        expect(target?.getAttribute("cy")).toBe(
+          topPiece?.getAttribute("cy"),
+        );
+      }
     }
   });
 

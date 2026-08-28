@@ -39,13 +39,13 @@ export interface BoardPresentationState {
 }
 
 const svgNamespace = "http://www.w3.org/2000/svg";
-const legalPlacementIndicatorRadius = 0.09;
+const legalPlacementIndicatorRadius = 0.07;
 const supplyPointHitRadius = 0.3;
 const pieceRadius = 0.24;
 const pieceStackStep = 0.1;
 // A legal point can hold five pieces (3 for one player and 2 for the other).
-// The padding contains a row-0 stack plus a small allowance for its stroke.
-const viewBoxPadding = 0.66;
+// The padding contains a hit target centered on a row-0 five-piece stack.
+const viewBoxPadding = 0.74;
 const placementsPerTurn = 3;
 
 export function createBoardSvgLayout(cellsPerSide: number): BoardSvgLayout {
@@ -153,10 +153,7 @@ function appendPointPieces(
     const piece = createSvgElement("circle");
     piece.classList.add("piece", `${player}-piece`);
     piece.setAttribute("cx", String(position.x));
-    piece.setAttribute(
-      "cy",
-      String(position.y - stackIndex * pieceStackStep),
-    );
+    piece.setAttribute("cy", String(position.y - stackIndex * pieceStackStep));
     piece.setAttribute("r", String(pieceRadius));
     piece.dataset.player = player;
     piece.dataset.stackIndex = String(stackIndex);
@@ -194,8 +191,18 @@ function coordinatesMatch(
   return first.row === second.row && first.column === second.column;
 }
 
+function getTopPieceCenterY(
+  point: PointState,
+  position: SvgPosition,
+): number {
+  const topPieceIndex = Math.max(point.pieces.length - 1, 0);
+
+  return position.y - topPieceIndex * pieceStackStep;
+}
+
 function appendGuideIndicator(
   guideLayer: SVGGElement,
+  point: PointState,
   position: SvgPosition,
   kind: "supply-point" | "objective",
   feedback: "legal-placement" | "eligible-support",
@@ -210,7 +217,10 @@ function appendGuideIndicator(
   }
 
   indicator.setAttribute("cx", String(position.x));
-  indicator.setAttribute("cy", String(position.y));
+  indicator.setAttribute(
+    "cy",
+    String(getTopPieceCenterY(point, position)),
+  );
   indicator.setAttribute("r", String(legalPlacementIndicatorRadius));
   setCoordinateMetadata(indicator, position, kind);
   guideLayer.append(indicator);
@@ -231,6 +241,7 @@ function appendGuideIndicators(
       ) {
         appendGuideIndicator(
           guideLayer,
+          getPointState(state, position, "supply-point"),
           position,
           "supply-point",
           "eligible-support",
@@ -245,6 +256,7 @@ function appendGuideIndicators(
     if (evaluateObjectivePlacement(state, position).legal) {
       appendGuideIndicator(
         guideLayer,
+        getPointState(state, position, "objective"),
         position,
         "objective",
         "legal-placement",
@@ -256,6 +268,7 @@ function appendGuideIndicators(
     if (evaluateSupplyPointPlacement(state, position).legal) {
       appendGuideIndicator(
         guideLayer,
+        getPointState(state, position, "supply-point"),
         position,
         "supply-point",
         "legal-placement",
@@ -310,12 +323,7 @@ export function renderBoard(
   for (const position of layout.supplyPoints) {
     const point = getPointState(state, position, "supply-point");
 
-    appendPointPieces(
-      pieceLayer,
-      position,
-      "supply-point",
-      point,
-    );
+    appendPointPieces(pieceLayer, position, "supply-point", point);
   }
 
   for (const position of layout.objectives) {
@@ -334,10 +342,11 @@ export function renderBoard(
   }
 
   for (const position of layout.supplyPoints) {
+    const point = getPointState(state, position, "supply-point");
     const target = createSvgElement("circle");
     target.classList.add("supply-point-target");
     target.setAttribute("cx", String(position.x));
-    target.setAttribute("cy", String(position.y));
+    target.setAttribute("cy", String(getTopPieceCenterY(point, position)));
     target.setAttribute("r", String(supplyPointHitRadius));
     setCoordinateMetadata(target, position, "supply-point");
 
@@ -402,9 +411,8 @@ export function renderFinalResult(state: GameState): HTMLElement | null {
 
   const heading = document.createElement("h2");
   heading.classList.add("game-result-heading");
-  heading.textContent = result.winner === null
-    ? "Draw"
-    : `${capitalize(result.winner)} wins`;
+  heading.textContent =
+    result.winner === null ? "Draw" : `${capitalize(result.winner)} wins`;
 
   const table = document.createElement("table");
   table.classList.add("objective-scores");

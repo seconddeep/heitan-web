@@ -146,23 +146,21 @@ body {
 .objective-target,
 .supply-point-target {
   fill: transparent;
-  stroke: transparent;
-  stroke-width: 0.06;
-  pointer-events: all;
+  stroke: none;
+  pointer-events: fill;
 }
 
 .hit-target-layer {
   pointer-events: none;
 }
 
-.hit-target-layer > * {
-  pointer-events: all;
+.guide-indicator {
+  fill: rgb(60 115 150 / 50%);
+  stroke: none;
 }
 
-.guide-indicator {
-  fill: rgb(74 116 87 / 20%);
-  stroke: #4a7457;
-  stroke-width: 0.04;
+.guide-indicator[data-support-eligible="true"] {
+  fill: rgb(150 25 70 / 50%);
 }
 
 @media (max-width: 36rem) {
