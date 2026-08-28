@@ -232,6 +232,10 @@ function appendGuideIndicators(
   layout: BoardSvgLayout,
   presentation: BoardPresentationState,
 ): void {
+  if (isGameOver(state)) {
+    return;
+  }
+
   if (presentation.eligibleSupplyPoints !== undefined) {
     for (const position of layout.supplyPoints) {
       if (

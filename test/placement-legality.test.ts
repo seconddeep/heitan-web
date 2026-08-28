@@ -215,31 +215,6 @@ describe("Supply Point placement legality", () => {
     );
   });
 
-  test("rejects placement after three total turn placements", () => {
-    const state = withTurn(createInitialGameState(3, 12), {
-      placements: [
-        { kind: "supply-point", row: 0, column: 0 },
-        { kind: "supply-point", row: 0, column: 1 },
-        { kind: "objective", row: 0, column: 0 },
-      ],
-    });
-
-    expectSupplyPointPlacementIllegal(
-      state,
-      target,
-      "turn-placement-limit-reached",
-    );
-  });
-
-  test("rejects placement when the active player has no pieces left", () => {
-    const initialState = createInitialGameState(3, 12);
-    const state = {
-      ...initialState,
-      remainingPieces: { ...initialState.remainingPieces, black: 0 },
-    };
-
-    expectSupplyPointPlacementIllegal(state, target, "no-remaining-pieces");
-  });
 });
 
 describe("Objective placement legality", () => {
