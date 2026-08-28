@@ -12,6 +12,10 @@ import {
   evaluateObjectivePlacement,
   evaluateSupplyPointPlacement,
 } from "./game/placement-legality.ts";
+import {
+  getTotalTurnCount,
+  type GameConfiguration,
+} from "./game-configuration.ts";
 
 export interface SvgPosition {
   readonly row: number;
@@ -367,7 +371,10 @@ function capitalize(player: Player): string {
   return `${player[0].toUpperCase()}${player.slice(1)}`;
 }
 
-export function renderGameStatus(state: GameState): HTMLElement {
+export function renderGameStatus(
+  state: GameState,
+  configuration?: GameConfiguration,
+): HTMLElement {
   const status = document.createElement("section");
   status.classList.add("game-status");
   status.setAttribute("aria-label", "Current game status");
@@ -394,6 +401,22 @@ export function renderGameStatus(state: GameState): HTMLElement {
   placementCount.textContent = `Placements: ${state.turn.placements.length} / ${placementsPerTurn}`;
 
   details.append(blackRemaining, whiteRemaining, placementCount);
+
+  if (configuration !== undefined) {
+    const totalTurns = getTotalTurnCount(configuration);
+    const placedPieces =
+      configuration.piecesPerPlayer * 2 -
+      state.remainingPieces.black -
+      state.remainingPieces.white;
+    const currentTurn = isGameOver(state)
+      ? totalTurns
+      : Math.min(Math.floor(placedPieces / placementsPerTurn) + 1, totalTurns);
+    const turnCount = document.createElement("span");
+    turnCount.classList.add("turn-count");
+    turnCount.textContent = `Turn: ${currentTurn} / ${totalTurns}`;
+    details.append(turnCount);
+  }
+
   status.append(activePlayer, details);
 
   return status;
@@ -476,10 +499,11 @@ export function renderGameState(
   container: HTMLElement,
   state: GameState,
   presentation: BoardPresentationState = {},
+  configuration?: GameConfiguration,
 ): void {
   const result = renderFinalResult(state);
   const children: Node[] = [
-    renderGameStatus(state),
+    renderGameStatus(state, configuration),
     renderGameControls(presentation),
   ];
 
