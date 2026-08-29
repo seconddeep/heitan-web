@@ -41,6 +41,16 @@ function startGame(root: HTMLElement, configurationId: string): void {
 }
 
 describe("app navigation", () => {
+  test("places the game title in the top navigation", () => {
+    const root = createApp();
+    const title = root.querySelector("h1");
+
+    expect(title?.textContent).toBe("Heitan");
+    expect(title?.classList.contains("app-navigation-title")).toBe(true);
+    expect(title?.closest(".app-navigation")).not.toBeNull();
+    expect(root.querySelector(".app-header h1")).toBeNull();
+  });
+
   test("links to the canonical rules in a new tab", () => {
     const root = createApp();
     const rulesLink = root.querySelector<HTMLAnchorElement>(".rules-link");
@@ -75,7 +85,8 @@ describe("new-game flow", () => {
       white: 36,
     });
     expect(root.querySelectorAll(".objective-target")).toHaveLength(16);
-    expect(root.querySelector(".turn-count")?.textContent).toBe("Turn: 1 / 24");
+    expect(root.querySelector(".board-size-status")?.textContent).toBe("4 × 4");
+    expect(root.querySelector(".turn-count")?.textContent).toBe("Turn 1 / 12");
   });
 
   test("starts a fresh game with the selected board and piece supply", () => {
@@ -90,7 +101,8 @@ describe("new-game flow", () => {
     });
     expect(root.querySelectorAll(".objective-target")).toHaveLength(36);
     expect(root.querySelectorAll(".supply-point-target")).toHaveLength(49);
-    expect(root.querySelector(".turn-count")?.textContent).toBe("Turn: 1 / 40");
+    expect(root.querySelector(".board-size-status")?.textContent).toBe("6 × 6");
+    expect(root.querySelector(".turn-count")?.textContent).toBe("Turn 1 / 20");
     expect(root.querySelector<HTMLDialogElement>(".new-game-dialog")?.open).toBe(false);
   });
 

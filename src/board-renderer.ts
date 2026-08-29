@@ -371,53 +371,89 @@ function capitalize(player: Player): string {
   return `${player[0].toUpperCase()}${player.slice(1)}`;
 }
 
+export interface TurnDisplay {
+  readonly currentTurn: number;
+  readonly totalTurns: number;
+  readonly placements: number;
+}
+
+export function deriveTurnDisplay(
+  state: GameState,
+  configuration: GameConfiguration,
+): TurnDisplay {
+  const remainingPieces = state.remainingPieces[state.turn.activePlayer];
+  const totalTurns = getTotalTurnCount(configuration);
+  const currentTurn = Math.min(
+    totalTurns,
+    Math.floor(
+      (configuration.piecesPerPlayer - remainingPieces) /
+        placementsPerTurn,
+    ) + 1,
+  );
+
+  return {
+    currentTurn,
+    totalTurns,
+    placements: state.turn.placements.length,
+  };
+}
+
 export function renderGameStatus(
   state: GameState,
-  configuration?: GameConfiguration,
+  configuration: GameConfiguration,
+  presentation: BoardPresentationState = {},
 ): HTMLElement {
   const status = document.createElement("section");
   status.classList.add("game-status");
   status.setAttribute("aria-label", "Current game status");
+  const gameOver = isGameOver(state);
 
-  const activePlayer = document.createElement("p");
+  const boardSize = document.createElement("span");
+  boardSize.classList.add("board-size-status");
+  boardSize.textContent = configuration.label;
+
+  const activePlayer = document.createElement("span");
   activePlayer.classList.add("active-player-status");
-  activePlayer.textContent = isGameOver(state)
-    ? "Game over"
-    : `${capitalize(state.turn.activePlayer)} to move`;
 
-  const details = document.createElement("div");
-  details.classList.add("game-status-details");
+  if (gameOver) {
+    activePlayer.textContent = "Game over";
+  } else {
+    const activePlayerName = capitalize(state.turn.activePlayer);
+    activePlayer.textContent = activePlayerName;
+    activePlayer.setAttribute("aria-label", `Active player: ${activePlayerName}`);
+  }
 
-  const blackRemaining = document.createElement("span");
-  blackRemaining.classList.add("remaining-pieces", "remaining-black");
-  blackRemaining.textContent = `Black: ${state.remainingPieces.black}`;
+  const turnDisplay = deriveTurnDisplay(state, configuration);
 
-  const whiteRemaining = document.createElement("span");
-  whiteRemaining.classList.add("remaining-pieces", "remaining-white");
-  whiteRemaining.textContent = `White: ${state.remainingPieces.white}`;
+  const turnCount = document.createElement("span");
+  turnCount.classList.add("turn-count");
+  turnCount.textContent = `Turn ${turnDisplay.currentTurn} / ${turnDisplay.totalTurns}`;
 
   const placementCount = document.createElement("span");
   placementCount.classList.add("placement-count");
-  placementCount.textContent = `Placements: ${state.turn.placements.length} / ${placementsPerTurn}`;
+  placementCount.textContent = `${turnDisplay.placements} / ${placementsPerTurn}`;
+  placementCount.setAttribute(
+    "aria-label",
+    `Placements: ${turnDisplay.placements} / ${placementsPerTurn}`,
+  );
 
-  details.append(blackRemaining, whiteRemaining, placementCount);
+  const summary = document.createElement("div");
+  summary.classList.add("game-status-summary");
+  summary.append(boardSize, turnCount);
 
-  if (configuration !== undefined) {
-    const totalTurns = getTotalTurnCount(configuration);
-    const placedPieces =
-      configuration.piecesPerPlayer * 2 -
-      state.remainingPieces.black -
-      state.remainingPieces.white;
-    const currentTurn = isGameOver(state)
-      ? totalTurns
-      : Math.min(Math.floor(placedPieces / placementsPerTurn) + 1, totalTurns);
-    const turnCount = document.createElement("span");
-    turnCount.classList.add("turn-count");
-    turnCount.textContent = `Turn: ${currentTurn} / ${totalTurns}`;
-    details.append(turnCount);
+  const header = document.createElement("div");
+  header.classList.add("game-status-header");
+  header.append(summary, renderGameControls(presentation));
+
+  const currentTurn = document.createElement("div");
+  currentTurn.classList.add("game-status-current");
+  currentTurn.append(activePlayer, placementCount);
+
+  status.append(header);
+
+  if (!gameOver) {
+    status.append(currentTurn);
   }
-
-  status.append(activePlayer, details);
 
   return status;
 }
@@ -475,9 +511,9 @@ export function renderFinalResult(state: GameState): HTMLElement | null {
   const body = document.createElement("tbody");
 
   for (const [label, key] of [
-    ["Secured Objectives", "secured"],
-    ["Advantage Objectives", "advantage"],
-    ["Pieces on Advantage Objectives", "advantagePieces"],
+    ["Secured", "secured"],
+    ["Advantage", "advantage"],
+    ["Pieces on Advantage", "advantagePieces"],
   ] as const) {
     const row = document.createElement("tr");
     row.innerHTML = `
@@ -499,12 +535,11 @@ export function renderGameState(
   container: HTMLElement,
   state: GameState,
   presentation: BoardPresentationState = {},
-  configuration?: GameConfiguration,
+  configuration: GameConfiguration,
 ): void {
   const result = renderFinalResult(state);
   const children: Node[] = [
-    renderGameStatus(state, configuration),
-    renderGameControls(presentation),
+    renderGameStatus(state, configuration, presentation),
   ];
 
   if (result !== null) {

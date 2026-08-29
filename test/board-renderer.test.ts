@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   createBoardSvgLayout,
+  deriveTurnDisplay,
   renderBoard,
   renderFinalResult,
   renderGameState,
@@ -16,6 +17,20 @@ import {
   type PointState,
 } from "../src/game/game-state.ts";
 import type { GameConfiguration } from "../src/game-configuration.ts";
+
+const boardConfiguration: GameConfiguration = {
+  id: "test-3x3",
+  label: "3 × 3",
+  cellsPerSide: 3,
+  piecesPerPlayer: 12,
+};
+
+const releaseBoardConfiguration: GameConfiguration = {
+  id: "test-4x4",
+  label: "4 × 4",
+  cellsPerSide: 4,
+  piecesPerPlayer: 36,
+};
 
 function pointState(
   pieces: readonly Player[],
@@ -549,11 +564,11 @@ describe("Objective rendering", () => {
   });
 });
 
-test("renders turn and remaining-piece status directly from GameState", () => {
-  const initialState = createInitialGameState(3, 12);
+test("renders turn and placement status from GameState and board configuration", () => {
+  const initialState = createInitialGameState(4, 36);
   const state: GameState = {
     ...initialState,
-    remainingPieces: { black: 7, white: 9 },
+    remainingPieces: { black: 18, white: 16 },
     turn: {
       ...initialState.turn,
       activePlayer: "white",
@@ -563,30 +578,86 @@ test("renders turn and remaining-piece status directly from GameState", () => {
       ],
     },
   };
-  const configuration: GameConfiguration = {
-    id: "3x3",
-    label: "3 × 3",
-    cellsPerSide: 3,
-    piecesPerPlayer: 12,
-  };
-  const status = renderGameStatus(state, configuration);
+  const status = renderGameStatus(state, releaseBoardConfiguration);
 
   expect(status.querySelector(".active-player-status")?.textContent).toBe(
-    "White to move",
+    "White",
   );
-  expect(status.querySelector(".remaining-black")?.textContent).toBe(
-    "Black: 7",
-  );
-  expect(status.querySelector(".remaining-white")?.textContent).toBe(
-    "White: 9",
-  );
-  expect(status.querySelector(".placement-count")?.textContent).toBe(
-    "Placements: 2 / 3",
+  expect(
+    status.querySelector(".active-player-status")?.getAttribute("aria-label"),
+  ).toBe("Active player: White");
+  expect(status.querySelector(".board-size-status")?.textContent).toBe(
+    "4 × 4",
   );
   expect(status.querySelector(".turn-count")?.textContent).toBe(
-    "Turn: 3 / 8",
+    "Turn 7 / 12",
+  );
+  expect(status.querySelector(".remaining-pieces")).toBeNull();
+  expect(status.querySelector(".placement-count")?.textContent).toBe(
+    "2 / 3",
+  );
+  expect(
+    status.querySelector(".placement-count")?.getAttribute("aria-label"),
+  ).toBe("Placements: 2 / 3");
+  expect(Array.from(status.children).map((element) => element.className)).toEqual([
+    "game-status-header",
+    "game-status-current",
+  ]);
+  expect(
+    Array.from(
+      status.querySelector(".game-status-header")?.children ?? [],
+    ).map((element) => element.className),
+  ).toEqual(["game-status-summary", "game-controls"]);
+  expect(
+    Array.from(
+      status.querySelector(".game-status-summary")?.children ?? [],
+    ).map((element) => element.className),
+  ).toEqual(["board-size-status", "turn-count"]);
+  expect(
+    Array.from(
+      status.querySelector(".game-status-current")?.children ?? [],
+    ).map((element) => element.className),
+  ).toEqual(["active-player-status", "placement-count"]);
+  expect(status.querySelector<HTMLButtonElement>(".undo-button")?.disabled).toBe(
+    true,
   );
 });
+
+test.each([
+  ["Black at the start of turn 1", "black", 36, 0, 1],
+  ["White partway through turn 1", "white", 34, 2, 1],
+  ["Black at the start of turn 2", "black", 33, 0, 2],
+  ["White partway through turn 2", "white", 31, 2, 2],
+  ["Black at the start of turn 7", "black", 18, 0, 7],
+  ["White partway through turn 7", "white", 16, 2, 7],
+] as const)(
+  "derives $0 without persistent turn counters",
+  (_description, activePlayer, remainingPieces, placements, currentTurn) => {
+    const initialState = createInitialGameState(4, 36);
+    const placementTargets = [
+      { kind: "supply-point", row: 0, column: 0 },
+      { kind: "supply-point", row: 0, column: 1 },
+    ] as const;
+    const state: GameState = {
+      ...initialState,
+      remainingPieces: {
+        ...initialState.remainingPieces,
+        [activePlayer]: remainingPieces,
+      },
+      turn: {
+        ...initialState.turn,
+        activePlayer,
+        placements: placementTargets.slice(0, placements),
+      },
+    };
+
+    expect(deriveTurnDisplay(state, releaseBoardConfiguration)).toEqual({
+      currentTurn,
+      totalTurns: 12,
+      placements,
+    });
+  },
+);
 
 test.each([
   ["black", "Black wins"],
@@ -612,13 +683,13 @@ test.each([
     ),
   ).toEqual([
     [
-      "Secured Objectives",
+      "Secured",
       player === "black" ? "1" : "0",
       player === "white" ? "1" : "0",
     ],
-    ["Advantage Objectives", "0", "0"],
+    ["Advantage", "0", "0"],
     [
-      "Pieces on Advantage Objectives",
+      "Pieces on Advantage",
       "0",
       "0",
     ],
@@ -657,24 +728,24 @@ test("re-rendering replaces all stale board and status visuals", () => {
   };
   const container = document.createElement("div");
 
-  renderGameState(container, firstState);
+  renderGameState(container, firstState, {}, boardConfiguration);
   const originalSvg = container.querySelector("svg");
   expect(container.querySelectorAll(".black-piece")).toHaveLength(2);
 
-  renderGameState(container, secondState);
+  renderGameState(container, secondState, {}, boardConfiguration);
 
   expect(container.querySelector("svg")).not.toBe(originalSvg);
   expect(container.querySelector(".black-piece")).toBeNull();
   expect(container.querySelectorAll(".white-piece")).toHaveLength(1);
   expect(container.querySelector(".point-state")).toBeNull();
   expect(container.querySelector(".active-player-status")?.textContent).toBe(
-    "White to move",
+    "White",
   );
-  expect(container.querySelector(".remaining-black")?.textContent).toBe(
-    "Black: 10",
+  expect(container.querySelector(".turn-count")?.textContent).toBe(
+    "Turn 2 / 4",
   );
   expect(container.querySelector(".placement-count")?.textContent).toBe(
-    "Placements: 1 / 3",
+    "1 / 3",
   );
   expect(container.querySelectorAll(".supply-point-target")).toHaveLength(16);
 });
@@ -693,7 +764,7 @@ test("rendering does not mutate GameState", () => {
   const before = JSON.stringify(state);
 
   renderBoard(state);
-  renderGameStatus(state);
+  renderGameStatus(state, boardConfiguration);
 
   expect(JSON.stringify(state)).toBe(before);
 });

@@ -29,6 +29,7 @@ export function createGameApp(
   app.innerHTML = `
     <main class="app-shell">
       <nav class="app-navigation" aria-label="Game">
+        <h1 class="app-navigation-title">Heitan</h1>
         <button
           class="app-navigation-item new-game-button"
           type="button"
@@ -42,10 +43,6 @@ export function createGameApp(
           rel="noopener noreferrer"
         >Rules</a>
       </nav>
-      <header class="app-header">
-        <h1>Heitan</h1>
-        <p class="current-board"></p>
-      </header>
       <div class="board-container"></div>
       <dialog class="new-game-dialog" aria-labelledby="new-game-title">
         <form class="new-game-form">
@@ -74,7 +71,6 @@ export function createGameApp(
   const cancelButton = app.querySelector<HTMLButtonElement>(
     '[data-action="cancel-new-game"]',
   );
-  const currentBoard = app.querySelector<HTMLElement>(".current-board");
   const boardContainer = app.querySelector<HTMLElement>(".board-container");
 
   if (
@@ -83,7 +79,6 @@ export function createGameApp(
     !form ||
     !select ||
     !cancelButton ||
-    !currentBoard ||
     !boardContainer
   ) {
     throw new Error("Game application controls could not be created");
@@ -102,7 +97,6 @@ export function createGameApp(
   const startGame = (configuration: GameConfiguration): void => {
     activeConfiguration = configuration;
     select.value = configuration.id;
-    currentBoard.textContent = `Current board: ${configuration.label}`;
     boardSession?.disconnect();
     boardSession = createBoardSession(
       boardContainer,

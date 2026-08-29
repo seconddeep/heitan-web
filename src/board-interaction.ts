@@ -1,7 +1,4 @@
-import {
-  renderGameState,
-  type BoardPresentationState,
-} from "./board-renderer.ts";
+import type { BoardPresentationState } from "./board-renderer.ts";
 import type { BoardCoordinate } from "./game/board-geometry.ts";
 import { completeTurn, isGameOver } from "./game/game-flow.ts";
 import type { GameState, PlacementTarget } from "./game/game-state.ts";
@@ -178,7 +175,7 @@ export function isUndoAction(
 export function createBoardSession(
   container: HTMLElement,
   initialState: GameState,
-  render: GameStateRenderer = renderGameState,
+  render: GameStateRenderer,
 ): BoardSession {
   const placementHistory: GameState[] = [];
   let interactionState: BoardInteractionState = {
