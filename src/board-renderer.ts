@@ -401,19 +401,27 @@ export function deriveTurnDisplay(
 export function renderGameStatus(
   state: GameState,
   configuration: GameConfiguration,
+  presentation: BoardPresentationState = {},
 ): HTMLElement {
   const status = document.createElement("section");
   status.classList.add("game-status");
   status.setAttribute("aria-label", "Current game status");
 
-  const activePlayer = document.createElement("p");
-  activePlayer.classList.add("active-player-status");
-  activePlayer.textContent = isGameOver(state)
-    ? "Game over"
-    : `${capitalize(state.turn.activePlayer)} to move`;
+  const boardSize = document.createElement("span");
+  boardSize.classList.add("board-size-status");
+  boardSize.textContent = configuration.label;
 
-  const details = document.createElement("div");
-  details.classList.add("game-status-details");
+  const activePlayer = document.createElement("span");
+  activePlayer.classList.add("active-player-status");
+
+  if (isGameOver(state)) {
+    activePlayer.textContent = "Game over";
+  } else {
+    const activePlayerName = capitalize(state.turn.activePlayer);
+    activePlayer.textContent = activePlayerName;
+    activePlayer.setAttribute("aria-label", `Active player: ${activePlayerName}`);
+  }
+
   const turnDisplay = deriveTurnDisplay(state, configuration);
 
   const turnCount = document.createElement("span");
@@ -422,10 +430,25 @@ export function renderGameStatus(
 
   const placementCount = document.createElement("span");
   placementCount.classList.add("placement-count");
-  placementCount.textContent = `Placements ${turnDisplay.placements} / ${placementsPerTurn}`;
+  placementCount.textContent = `${turnDisplay.placements} / ${placementsPerTurn}`;
+  placementCount.setAttribute(
+    "aria-label",
+    `Placements: ${turnDisplay.placements} / ${placementsPerTurn}`,
+  );
 
-  details.append(turnCount, placementCount);
-  status.append(activePlayer, details);
+  const summary = document.createElement("div");
+  summary.classList.add("game-status-summary");
+  summary.append(boardSize, turnCount);
+
+  const currentTurn = document.createElement("div");
+  currentTurn.classList.add("game-status-current");
+  currentTurn.append(activePlayer, placementCount);
+
+  status.append(
+    summary,
+    renderGameControls(presentation),
+    currentTurn,
+  );
 
   return status;
 }
@@ -511,8 +534,7 @@ export function renderGameState(
 ): void {
   const result = renderFinalResult(state);
   const children: Node[] = [
-    renderGameStatus(state, configuration),
-    renderGameControls(presentation),
+    renderGameStatus(state, configuration, presentation),
   ];
 
   if (result !== null) {

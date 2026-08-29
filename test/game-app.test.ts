@@ -85,6 +85,7 @@ describe("new-game flow", () => {
       white: 36,
     });
     expect(root.querySelectorAll(".objective-target")).toHaveLength(16);
+    expect(root.querySelector(".board-size-status")?.textContent).toBe("4 × 4");
     expect(root.querySelector(".turn-count")?.textContent).toBe("Turn 1 / 12");
   });
 
@@ -100,6 +101,7 @@ describe("new-game flow", () => {
     });
     expect(root.querySelectorAll(".objective-target")).toHaveLength(36);
     expect(root.querySelectorAll(".supply-point-target")).toHaveLength(49);
+    expect(root.querySelector(".board-size-status")?.textContent).toBe("6 × 6");
     expect(root.querySelector(".turn-count")?.textContent).toBe("Turn 1 / 20");
     expect(root.querySelector<HTMLDialogElement>(".new-game-dialog")?.open).toBe(false);
   });

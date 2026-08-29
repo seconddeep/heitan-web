@@ -22,17 +22,6 @@ body {
   padding: 3rem 2rem;
 }
 
-.app-header {
-  margin-bottom: 2rem;
-  text-align: center;
-}
-
-.app-header p {
-  margin: 0;
-  color: #536057;
-  font-size: 0.95rem;
-}
-
 .app-navigation {
   position: fixed;
   z-index: 10;
@@ -148,30 +137,45 @@ body {
 }
 
 .game-status {
-  margin-bottom: 1.25rem;
+  display: grid;
+  width: 100%;
+  grid-template:
+    "summary controls" auto
+    "current current" auto / minmax(0, 1fr) auto;
+  align-items: start;
+  row-gap: 0.5rem;
+  margin-bottom: 0.5rem;
   color: #39463d;
+  font-size: 0.9rem;
 }
 
-.active-player-status {
-  margin: 0 0 0.65rem;
+.game-status-summary {
+  display: flex;
+  grid-area: summary;
+  align-items: baseline;
+  gap: 1rem;
+  justify-self: start;
+}
+
+.game-status-current {
+  display: flex;
+  grid-area: current;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.active-player-status,
+.placement-count {
   color: #17221b;
   font-size: 1.1rem;
   font-weight: 700;
-  text-align: center;
-}
-
-.game-status-details {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem 1rem;
-  font-size: 0.9rem;
 }
 
 .game-controls {
   display: flex;
-  justify-content: center;
-  margin: -0.5rem 0 1.25rem;
+  grid-area: controls;
+  justify-self: end;
 }
 
 .undo-button {
@@ -299,5 +303,19 @@ body {
 
   .board-container {
     padding: 1rem;
+  }
+
+  .game-status {
+    font-size: 0.8rem;
+  }
+
+  .active-player-status,
+  .placement-count {
+    font-size: 0.9rem;
+  }
+
+  .undo-button {
+    min-width: 0;
+    padding: 0.35rem 0.6rem;
   }
 }

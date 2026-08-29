@@ -581,14 +581,41 @@ test("renders turn and placement status from GameState and board configuration",
   const status = renderGameStatus(state, releaseBoardConfiguration);
 
   expect(status.querySelector(".active-player-status")?.textContent).toBe(
-    "White to move",
+    "White",
+  );
+  expect(
+    status.querySelector(".active-player-status")?.getAttribute("aria-label"),
+  ).toBe("Active player: White");
+  expect(status.querySelector(".board-size-status")?.textContent).toBe(
+    "4 × 4",
   );
   expect(status.querySelector(".turn-count")?.textContent).toBe(
     "Turn 7 / 12",
   );
   expect(status.querySelector(".remaining-pieces")).toBeNull();
   expect(status.querySelector(".placement-count")?.textContent).toBe(
-    "Placements 2 / 3",
+    "2 / 3",
+  );
+  expect(
+    status.querySelector(".placement-count")?.getAttribute("aria-label"),
+  ).toBe("Placements: 2 / 3");
+  expect(Array.from(status.children).map((element) => element.className)).toEqual([
+    "game-status-summary",
+    "game-controls",
+    "game-status-current",
+  ]);
+  expect(
+    Array.from(
+      status.querySelector(".game-status-summary")?.children ?? [],
+    ).map((element) => element.className),
+  ).toEqual(["board-size-status", "turn-count"]);
+  expect(
+    Array.from(
+      status.querySelector(".game-status-current")?.children ?? [],
+    ).map((element) => element.className),
+  ).toEqual(["active-player-status", "placement-count"]);
+  expect(status.querySelector<HTMLButtonElement>(".undo-button")?.disabled).toBe(
+    true,
   );
 });
 
@@ -708,13 +735,13 @@ test("re-rendering replaces all stale board and status visuals", () => {
   expect(container.querySelectorAll(".white-piece")).toHaveLength(1);
   expect(container.querySelector(".point-state")).toBeNull();
   expect(container.querySelector(".active-player-status")?.textContent).toBe(
-    "White to move",
+    "White",
   );
   expect(container.querySelector(".turn-count")?.textContent).toBe(
     "Turn 2 / 4",
   );
   expect(container.querySelector(".placement-count")?.textContent).toBe(
-    "Placements 1 / 3",
+    "1 / 3",
   );
   expect(container.querySelectorAll(".supply-point-target")).toHaveLength(16);
 });

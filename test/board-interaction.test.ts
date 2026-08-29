@@ -132,7 +132,7 @@ describe("Supply Point interaction", () => {
       "Turn 1 / 4",
     );
     expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "Placements 1 / 3",
+      "1 / 3",
     );
   });
 
@@ -187,10 +187,10 @@ describe("Supply Point interaction", () => {
     expect(currentState.supplyPoints[1][2].player).toBe("black");
     expect(currentState.supplyPoints[2][2].player).toBe("black");
     expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "Placements 0 / 3",
+      "0 / 3",
     );
     expect(container.querySelector(".active-player-status")?.textContent).toBe(
-      "White to move",
+      "White",
     );
     expect(
       container.querySelector(
