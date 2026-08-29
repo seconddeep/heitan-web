@@ -688,9 +688,7 @@ describe("completed game flow", () => {
     expect(container.querySelector(".game-result-heading")?.textContent).toBe(
       "Draw",
     );
-    expect(container.querySelector(".active-player-status")?.textContent).toBe(
-      "Game over",
-    );
+    expect(container.querySelector(".game-status-current")).toBeNull();
     expect(container.querySelector('[data-placement-legal="true"]')).toBeNull();
     expect(container.querySelector("[data-placement-legal]")).toBeNull();
 

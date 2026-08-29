@@ -600,10 +600,14 @@ test("renders turn and placement status from GameState and board configuration",
     status.querySelector(".placement-count")?.getAttribute("aria-label"),
   ).toBe("Placements: 2 / 3");
   expect(Array.from(status.children).map((element) => element.className)).toEqual([
-    "game-status-summary",
-    "game-controls",
+    "game-status-header",
     "game-status-current",
   ]);
+  expect(
+    Array.from(
+      status.querySelector(".game-status-header")?.children ?? [],
+    ).map((element) => element.className),
+  ).toEqual(["game-status-summary", "game-controls"]);
   expect(
     Array.from(
       status.querySelector(".game-status-summary")?.children ?? [],
@@ -679,13 +683,13 @@ test.each([
     ),
   ).toEqual([
     [
-      "Secured Objectives",
+      "Secured",
       player === "black" ? "1" : "0",
       player === "white" ? "1" : "0",
     ],
-    ["Advantage Objectives", "0", "0"],
+    ["Advantage", "0", "0"],
     [
-      "Pieces on Advantage Objectives",
+      "Pieces on Advantage",
       "0",
       "0",
     ],

@@ -406,6 +406,7 @@ export function renderGameStatus(
   const status = document.createElement("section");
   status.classList.add("game-status");
   status.setAttribute("aria-label", "Current game status");
+  const gameOver = isGameOver(state);
 
   const boardSize = document.createElement("span");
   boardSize.classList.add("board-size-status");
@@ -414,7 +415,7 @@ export function renderGameStatus(
   const activePlayer = document.createElement("span");
   activePlayer.classList.add("active-player-status");
 
-  if (isGameOver(state)) {
+  if (gameOver) {
     activePlayer.textContent = "Game over";
   } else {
     const activePlayerName = capitalize(state.turn.activePlayer);
@@ -440,15 +441,19 @@ export function renderGameStatus(
   summary.classList.add("game-status-summary");
   summary.append(boardSize, turnCount);
 
+  const header = document.createElement("div");
+  header.classList.add("game-status-header");
+  header.append(summary, renderGameControls(presentation));
+
   const currentTurn = document.createElement("div");
   currentTurn.classList.add("game-status-current");
   currentTurn.append(activePlayer, placementCount);
 
-  status.append(
-    summary,
-    renderGameControls(presentation),
-    currentTurn,
-  );
+  status.append(header);
+
+  if (!gameOver) {
+    status.append(currentTurn);
+  }
 
   return status;
 }
@@ -506,9 +511,9 @@ export function renderFinalResult(state: GameState): HTMLElement | null {
   const body = document.createElement("tbody");
 
   for (const [label, key] of [
-    ["Secured Objectives", "secured"],
-    ["Advantage Objectives", "advantage"],
-    ["Pieces on Advantage Objectives", "advantagePieces"],
+    ["Secured", "secured"],
+    ["Advantage", "advantage"],
+    ["Pieces on Advantage", "advantagePieces"],
   ] as const) {
     const row = document.createElement("tr");
     row.innerHTML = `
