@@ -6,6 +6,7 @@ import {
   createBoardSession,
   getPlacementTarget,
   isUndoAction,
+  type BoardSessionLifecycle,
 } from "../src/board-interaction.ts";
 import {
   renderGameState,
@@ -71,6 +72,7 @@ function clickUndo(container: HTMLElement): void {
 function createRenderedSession(
   state = createInitialGameState(3, 12),
   gameConfiguration: GameConfiguration = configuration,
+  lifecycle: BoardSessionLifecycle = {},
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -87,7 +89,7 @@ function createRenderedSession(
         gameConfiguration,
       ),
   );
-  const session = createBoardSession(container, state, render);
+  const session = createBoardSession(container, state, render, lifecycle);
   sessions.push(session);
 
   return { container, render, session };
@@ -701,6 +703,90 @@ describe("completed game flow", () => {
     expect(session.getGameState()).toBe(terminalState);
     expect(render).toHaveBeenCalledTimes(rendersAtGameEnd);
   });
+});
+
+describe("session lifecycle", () => {
+  test("notifies game start once after the first legal placement", () => {
+    const onGameStart = vi.fn();
+    const { container } = createRenderedSession(
+      createInitialGameState(3, 12),
+      configuration,
+      { onGameStart },
+    );
+
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+    clickUndo(container);
+    clickTarget(
+      container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+
+    expect(onGameStart).toHaveBeenCalledTimes(1);
+  });
+
+  test("allows a new session to notify game start", () => {
+    const onGameStart = vi.fn();
+    const first = createRenderedSession(
+      createInitialGameState(3, 12),
+      configuration,
+      { onGameStart },
+    );
+    const second = createRenderedSession(
+      createInitialGameState(3, 12),
+      configuration,
+      { onGameStart },
+    );
+
+    clickTarget(
+      first.container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+    clickTarget(
+      second.container,
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    );
+
+    expect(onGameStart).toHaveBeenCalledTimes(2);
+  });
+
+  test("notifies game completion once after undo and recompletion", () => {
+    const onGameComplete = vi.fn();
+    const finalTurnState: GameState = {
+      ...createInitialGameState(3, 3),
+      remainingPieces: { black: 3, white: 0 },
+    };
+    const { container } = createRenderedSession(
+      finalTurnState,
+      {
+        id: "test-final-turn",
+        label: "3 × 3",
+        cellsPerSide: 3,
+        piecesPerPlayer: 3,
+      },
+      { onGameComplete },
+    );
+    const targets = [
+      '.supply-point-target[data-row="1"][data-column="1"]',
+      '.supply-point-target[data-row="1"][data-column="1"]',
+      '.supply-point-target[data-row="1"][data-column="2"]',
+    ];
+
+    for (const target of targets) {
+      clickTarget(container, target);
+    }
+
+    clickUndo(container);
+    clickTarget(container, targets[2]);
+
+    expect(onGameComplete).toHaveBeenCalledTimes(1);
+    expect(onGameComplete).toHaveBeenCalledWith(expect.objectContaining({
+      remainingPieces: { black: 0, white: 0 },
+    }));
+  });
+
 });
 
 describe("hit-target validation", () => {

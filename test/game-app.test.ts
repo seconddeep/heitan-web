@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
+import type { ProductAnalytics } from "../src/analytics.ts";
 import { createGameApp, type GameApp } from "../src/game-app.ts";
+import type { GameConfiguration } from "../src/game-configuration.ts";
 
 let gameApp: GameApp | undefined;
 
@@ -12,11 +14,24 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function createApp(): HTMLElement {
+function createApp(
+  analytics?: ProductAnalytics,
+  configuration?: GameConfiguration,
+): HTMLElement {
   const root = document.createElement("div");
   document.body.append(root);
-  gameApp = createGameApp(root);
+  gameApp = configuration
+    ? createGameApp(root, [configuration], configuration, analytics)
+    : createGameApp(root, undefined, undefined, analytics);
   return root;
+}
+
+function createAnalyticsSpy(): {
+  readonly analytics: ProductAnalytics;
+  readonly track: ReturnType<typeof vi.fn<ProductAnalytics["track"]>>;
+} {
+  const track = vi.fn<ProductAnalytics["track"]>();
+  return { analytics: { track }, track };
 }
 
 function click(root: HTMLElement, selector: string): void {
@@ -24,7 +39,9 @@ function click(root: HTMLElement, selector: string): void {
   if (!(target instanceof Element)) {
     throw new Error(`Missing target: ${selector}`);
   }
-  target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  target.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true }),
+  );
 }
 
 function startGame(root: HTMLElement, configurationId: string): void {
@@ -65,6 +82,20 @@ describe("app navigation", () => {
       root.querySelector(".new-game-button"),
     );
   });
+
+  test("tracks opening the rules", () => {
+    const { analytics, track } = createAnalyticsSpy();
+    const root = createApp(analytics);
+    root.querySelector(".rules-link")?.addEventListener(
+      "click",
+      (event) => event.preventDefault(),
+      { once: true },
+    );
+
+    click(root, ".rules-link");
+
+    expect(track).toHaveBeenCalledWith({ name: "rules_open" });
+  });
 });
 
 describe("new-game flow", () => {
@@ -90,7 +121,8 @@ describe("new-game flow", () => {
   });
 
   test("starts a fresh game with the selected board and piece supply", () => {
-    const root = createApp();
+    const { analytics, track } = createAnalyticsSpy();
+    const root = createApp(analytics);
 
     startGame(root, "6x6");
 
@@ -104,6 +136,10 @@ describe("new-game flow", () => {
     expect(root.querySelector(".board-size-status")?.textContent).toBe("6 × 6");
     expect(root.querySelector(".turn-count")?.textContent).toBe("Turn 1 / 20");
     expect(root.querySelector<HTMLDialogElement>(".new-game-dialog")?.open).toBe(false);
+    expect(track).toHaveBeenCalledWith({
+      name: "board_size_selected",
+      parameters: { board_size: "6x6" },
+    });
   });
 
   test("opens board selection in a modal and cancel preserves the game", () => {
@@ -151,5 +187,98 @@ describe("new-game flow", () => {
     expect(state?.turn.placements).toEqual([]);
     expect(gameApp?.getBoardSession().getPendingSupportSelection()).toBeNull();
     expect(root.querySelector<HTMLButtonElement>(".undo-button")?.disabled).toBe(true);
+  });
+});
+
+describe("play analytics", () => {
+  test("tracks game start once per game, including after New Game", () => {
+    const { analytics, track } = createAnalyticsSpy();
+    const root = createApp(analytics);
+    const placement =
+      '.supply-point-target[data-row="1"][data-column="1"]';
+
+    click(root, placement);
+    click(root, ".undo-button");
+    click(root, placement);
+
+    expect(track.mock.calls.filter(([event]) => event.name === "game_start"))
+      .toEqual([
+        [
+          {
+            name: "game_start",
+            parameters: { board_size: "4x4" },
+          },
+        ],
+      ]);
+
+    startGame(root, "4x4");
+    click(root, placement);
+
+    expect(
+      track.mock.calls.filter(([event]) => event.name === "game_start"),
+    ).toHaveLength(2);
+  });
+
+  test("tracks successful undo with the active board size", () => {
+    const { analytics, track } = createAnalyticsSpy();
+    const root = createApp(analytics);
+
+    click(root, '.supply-point-target[data-row="1"][data-column="1"]');
+    click(root, ".undo-button");
+
+    expect(track).toHaveBeenCalledWith({
+      name: "undo",
+      parameters: { board_size: "4x4" },
+    });
+  });
+
+  test("tracks game completion with a coarse result", () => {
+    const { analytics, track } = createAnalyticsSpy();
+    const configuration: GameConfiguration = {
+      id: "test-3x3",
+      label: "3 × 3",
+      cellsPerSide: 3,
+      piecesPerPlayer: 3,
+    };
+    const root = createApp(analytics, configuration);
+
+    click(root, '.supply-point-target[data-row="1"][data-column="1"]');
+    click(root, '.supply-point-target[data-row="1"][data-column="1"]');
+    click(root, '.supply-point-target[data-row="1"][data-column="2"]');
+    click(root, '.supply-point-target[data-row="0"][data-column="0"]');
+    click(root, '.supply-point-target[data-row="0"][data-column="0"]');
+    click(root, '.supply-point-target[data-row="0"][data-column="1"]');
+
+    expect(track).toHaveBeenCalledWith({
+      name: "game_complete",
+      parameters: {
+        board_size: "test-3x3",
+        result: "draw",
+      },
+    });
+  });
+
+  test("continues without Analytics and when tracking throws", () => {
+    const rootWithoutAnalytics = createApp();
+
+    expect(() =>
+      click(
+        rootWithoutAnalytics,
+        '.supply-point-target[data-row="1"][data-column="1"]',
+      ),
+    ).not.toThrow();
+    expect(gameApp?.getBoardSession().getGameState().remainingPieces.black)
+      .toBe(35);
+
+    gameApp?.disconnect();
+    const throwingAnalytics: ProductAnalytics = {
+      track: () => {
+        throw new Error("Analytics unavailable");
+      },
+    };
+    const rootWithFailure = createApp(throwingAnalytics);
+
+    expect(() => startGame(rootWithFailure, "6x6")).not.toThrow();
+    expect(gameApp?.getConfiguration().id).toBe("6x6");
   });
 });

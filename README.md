@@ -54,6 +54,51 @@ npm run build
 
 This runs the TypeScript compiler and creates the production site in `dist/`. To inspect the build locally, run `npm run preview`.
 
+## Analytics
+
+The production application uses Firebase Analytics for a small set of aggregate
+product-usage events. Analytics requires a Firebase Web app connected to Google
+Analytics and the following Vite environment variables at build time:
+
+```sh
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_APP_ID=...
+VITE_FIREBASE_MEASUREMENT_ID=...
+VITE_FIREBASE_PROJECT_ID=heitan-web
+```
+
+These values are Firebase Web client configuration and are included in the
+browser bundle. Do not put service-account credentials or other secrets in
+`VITE_` variables.
+
+Analytics is attempted automatically in production when all required values are
+present. It is disabled by default during local development. To test Analytics
+locally, put the Firebase configuration in `.env.local` and add:
+
+```sh
+VITE_FIREBASE_ANALYTICS_ENABLED=true
+```
+
+The application records only these events:
+
+| Event | When it is recorded | Parameters |
+| --- | --- | --- |
+| `page_view` | Automatically by Firebase Analytics when it initializes | Firebase defaults |
+| `game_start` | The first successful placement in a game | `board_size` |
+| `game_complete` | The first time a game reaches its completed state | `board_size`, `result` |
+| `undo` | A placement is successfully undone | `board_size` |
+| `board_size_selected` | A board size is confirmed in the New Game dialog | `board_size` |
+| `rules_open` | The Rules link is opened | None |
+
+`game_start` and `game_complete` are each recorded at most once per game. Undoing
+back to the initial state or undoing after completion does not record either event
+again. Starting a New Game creates a new game session and resets those limits.
+The `result` value is limited to `black_win`, `white_win`, or `draw`.
+
+No board positions, move histories, score details, player identities, or user
+accounts are sent by this integration. Missing configuration, unsupported browser
+features, initialization failures, and tracking failures do not block gameplay.
+
 ## Firebase deployment
 
 Firebase Hosting is configured in `firebase.json` to serve `dist/` and rewrite application routes to `index.html`. The default Firebase project in `.firebaserc` is `heitan-web`.

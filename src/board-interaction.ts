@@ -28,6 +28,12 @@ export interface BoardSession {
   readonly disconnect: () => void;
 }
 
+export interface BoardSessionLifecycle {
+  readonly onGameStart?: () => void;
+  readonly onGameComplete?: (state: GameState) => void;
+  readonly onUndo?: () => void;
+}
+
 interface BoardInteractionState {
   readonly gameState: GameState;
   readonly pendingSupportSelection: PendingSupportSelection | null;
@@ -176,8 +182,11 @@ export function createBoardSession(
   container: HTMLElement,
   initialState: GameState,
   render: GameStateRenderer,
+  lifecycle: BoardSessionLifecycle = {},
 ): BoardSession {
   const placementHistory: GameState[] = [];
+  let gameStartNotified = false;
+  let gameCompleteNotified = false;
   let interactionState: BoardInteractionState = {
     gameState: initialState,
     pendingSupportSelection: null,
@@ -201,6 +210,7 @@ export function createBoardSession(
           pendingSupportSelection: null,
         };
         renderCurrentState();
+        lifecycle.onUndo?.();
       }
 
       return;
@@ -229,7 +239,10 @@ export function createBoardSession(
     }
 
     if (nextInteractionState !== interactionState) {
-      if (nextInteractionState.gameState !== interactionState.gameState) {
+      const placementApplied =
+        nextInteractionState.gameState !== interactionState.gameState;
+
+      if (placementApplied) {
         placementHistory.push(interactionState.gameState);
       }
 
@@ -240,6 +253,16 @@ export function createBoardSession(
         ),
       };
       renderCurrentState();
+
+      if (placementApplied && !gameStartNotified) {
+        gameStartNotified = true;
+        lifecycle.onGameStart?.();
+      }
+
+      if (isGameOver(interactionState.gameState) && !gameCompleteNotified) {
+        gameCompleteNotified = true;
+        lifecycle.onGameComplete?.(interactionState.gameState);
+      }
     }
   };
 
