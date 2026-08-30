@@ -1,5 +1,9 @@
 import { countPieces } from "./game-state.ts";
-import type { GameState, PointState } from "./game-state.ts";
+import type {
+  GameState,
+  PlacementTarget,
+  PointState,
+} from "./game-state.ts";
 
 /**
  * Resolves the state shared by Supply Points and Objectives at turn completion.
@@ -38,17 +42,46 @@ export function resolvePointState(point: PointState): PointState {
   };
 }
 
-function resolvePointMatrix(
-  matrix: readonly (readonly PointState[])[],
-): readonly (readonly PointState[])[] {
-  return matrix.map((row) => row.map(resolvePointState));
+function placementKey(target: PlacementTarget): string {
+  return `${target.kind}:${target.row}:${target.column}`;
 }
 
-/** Resolves every point without performing other turn-completion behavior. */
+function resolveTargets(
+  matrix: readonly (readonly PointState[])[],
+  targets: readonly PlacementTarget[],
+): readonly (readonly PointState[])[] {
+  if (targets.length === 0) {
+    return matrix;
+  }
+
+  const resolvedMatrix = matrix.map((row) => [...row]);
+
+  for (const target of targets) {
+    resolvedMatrix[target.row][target.column] = resolvePointState(
+      matrix[target.row][target.column],
+    );
+  }
+
+  return resolvedMatrix;
+}
+
+/** Resolves points changed by placements without completing the turn. */
 export function resolvePointStates(state: GameState): GameState {
+  const uniquePlacements = [
+    ...new Map(
+      state.turn.placements.map((target) => [placementKey(target), target]),
+    ).values(),
+  ];
+  const supplyPointTargets = uniquePlacements.filter(
+    (target) => target.kind === "supply-point",
+  );
+  const objectiveTargets = uniquePlacements.filter(
+    (target) => target.kind === "objective",
+  );
+
   return {
     ...state,
-    supplyPoints: resolvePointMatrix(state.supplyPoints),
-    objectives: resolvePointMatrix(state.objectives),
+    supplyPoints: resolveTargets(state.supplyPoints, supplyPointTargets),
+    objectives: resolveTargets(state.objectives, objectiveTargets),
   };
 }
