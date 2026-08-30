@@ -1,11 +1,18 @@
 import { createBoardSession, type BoardSession } from "./board-interaction.ts";
 import { renderGameState } from "./board-renderer.ts";
 import {
+  noOpProductAnalytics,
+  type GameCompleteResult,
+  type ProductAnalytics,
+  type ProductAnalyticsEvent,
+} from "./analytics.ts";
+import {
   defaultGameConfiguration,
   supportedGameConfigurations,
   type GameConfiguration,
 } from "./game-configuration.ts";
 import { createInitialGameState } from "./game/game-state.ts";
+import { calculateGameResult } from "./game/game-result.ts";
 
 export interface GameApp {
   readonly getConfiguration: () => GameConfiguration;
@@ -13,10 +20,28 @@ export interface GameApp {
   readonly disconnect: () => void;
 }
 
+function safelyTrack(
+  analytics: ProductAnalytics,
+  event: ProductAnalyticsEvent,
+): void {
+  try {
+    analytics.track(event);
+  } catch {
+    // Analytics availability must not affect the game.
+  }
+}
+
+function getCompleteResult(
+  winner: "black" | "white" | null,
+): GameCompleteResult {
+  return winner === null ? "draw" : `${winner}_win`;
+}
+
 export function createGameApp(
   app: HTMLElement,
   configurations: readonly GameConfiguration[] = supportedGameConfigurations,
   initialConfiguration: GameConfiguration = defaultGameConfiguration,
+  analytics: ProductAnalytics = noOpProductAnalytics,
 ): GameApp {
   if (configurations.length === 0) {
     throw new RangeError("At least one game configuration is required");
@@ -71,6 +96,7 @@ export function createGameApp(
   const cancelButton = app.querySelector<HTMLButtonElement>(
     '[data-action="cancel-new-game"]',
   );
+  const rulesLink = app.querySelector<HTMLAnchorElement>(".rules-link");
   const boardContainer = app.querySelector<HTMLElement>(".board-container");
 
   if (
@@ -79,6 +105,7 @@ export function createGameApp(
     !form ||
     !select ||
     !cancelButton ||
+    !rulesLink ||
     !boardContainer
   ) {
     throw new Error("Game application controls could not be created");
@@ -106,6 +133,31 @@ export function createGameApp(
       ),
       (container, state, presentation) =>
         renderGameState(container, state, presentation, configuration),
+      {
+        onGameStart: () =>
+          safelyTrack(analytics, {
+            name: "game_start",
+            parameters: { board_size: configuration.id },
+          }),
+        onGameComplete: (state) => {
+          const result = calculateGameResult(state);
+
+          if (result.finished) {
+            safelyTrack(analytics, {
+              name: "game_complete",
+              parameters: {
+                board_size: configuration.id,
+                result: getCompleteResult(result.winner),
+              },
+            });
+          }
+        },
+        onUndo: () =>
+          safelyTrack(analytics, {
+            name: "undo",
+            parameters: { board_size: configuration.id },
+          }),
+      },
     );
   };
 
@@ -116,6 +168,10 @@ export function createGameApp(
     );
 
     if (selectedConfiguration !== undefined) {
+      safelyTrack(analytics, {
+        name: "board_size_selected",
+        parameters: { board_size: selectedConfiguration.id },
+      });
       startGame(selectedConfiguration);
       closeDialog();
     }
@@ -139,8 +195,13 @@ export function createGameApp(
     }
   };
 
+  const handleRulesOpen = (): void => {
+    safelyTrack(analytics, { name: "rules_open" });
+  };
+
   openButton.addEventListener("click", openDialog);
   cancelButton.addEventListener("click", closeDialog);
+  rulesLink.addEventListener("click", handleRulesOpen);
   form.addEventListener("submit", handleSubmit);
   startGame(initialConfiguration);
 
@@ -150,6 +211,7 @@ export function createGameApp(
     disconnect: () => {
       openButton.removeEventListener("click", openDialog);
       cancelButton.removeEventListener("click", closeDialog);
+      rulesLink.removeEventListener("click", handleRulesOpen);
       form.removeEventListener("submit", handleSubmit);
       boardSession.disconnect();
     },
