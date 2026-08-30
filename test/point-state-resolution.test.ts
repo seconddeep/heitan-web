@@ -98,31 +98,114 @@ describe("resolvePointStates", () => {
         activePlayer: "white",
         placements: [
           { kind: "supply-point", row: 0, column: 0 },
+          { kind: "supply-point", row: 0, column: 0 },
+          { kind: "supply-point", row: 1, column: 1 },
           { kind: "objective", row: 1, column: 1 },
+          { kind: "objective", row: 2, column: 0 },
         ],
         usedSupplyPoints: [{ row: 1, column: 1 }],
       },
     };
   }
 
-  test("resolves Control for every Supply Point with the shared resolver", () => {
+  test("resolves Control only for changed Supply Points", () => {
     const resolved = resolvePointStates(stateWithPointMatrices());
 
     expect(resolved.supplyPoints).toEqual([
-      [pointState(2, 1, "black"), pointState(1, 2, "white")],
-      [pointState(2, 2), pointState(3, 1, "black", true)],
-      [pointState(1, 3, "white", true), pointState(3, 1, "black", true)],
+      [pointState(2, 1, "black"), pointState(1, 2, "black")],
+      [pointState(2, 2, "black"), pointState(3, 1, "black", true)],
+      [pointState(1, 3, "black"), pointState(3, 1, "black", true)],
     ]);
   });
 
-  test("resolves Advantage for every Objective with the shared resolver", () => {
+  test("resolves Advantage only for changed Objectives", () => {
     const resolved = resolvePointStates(stateWithPointMatrices());
 
     expect(resolved.objectives).toEqual([
-      [pointState(1, 0, "black"), pointState(0, 1, "white")],
-      [pointState(1, 1), pointState(3, 2, "black", true)],
+      [pointState(1, 0, "white"), pointState(0, 1, "black")],
+      [pointState(1, 1, "black"), pointState(3, 2, "black", true)],
       [pointState(2, 3, "white", true), pointState(0, 3, "white", true)],
     ]);
+  });
+
+  test("preserves unchanged points by reference", () => {
+    const state = stateWithPointMatrices();
+    const resolved = resolvePointStates(state);
+
+    expect(resolved.supplyPoints[0][1]).toBe(state.supplyPoints[0][1]);
+    expect(resolved.supplyPoints[1][0]).toBe(state.supplyPoints[1][0]);
+    expect(resolved.objectives[1][0]).toBe(state.objectives[1][0]);
+    expect(resolved.objectives[2][1]).toBe(state.objectives[2][1]);
+  });
+
+  test("resolves a target with repeated placements only once", () => {
+    const state = stateWithPointMatrices();
+    let pieceCountReads = 0;
+    const pieces = new Proxy<readonly Player[]>(
+      ["black", "black", "white"],
+      {
+        get(target, property, receiver) {
+          if (property === "filter") {
+            pieceCountReads += 1;
+          }
+
+          return Reflect.get(target, property, receiver);
+        },
+      },
+    );
+    const repeatedTargetState: GameState = {
+      ...state,
+      supplyPoints: [
+        [
+          { pieces, secured: false, player: "white" },
+          ...state.supplyPoints[0].slice(1),
+        ],
+        ...state.supplyPoints.slice(1),
+      ],
+      turn: {
+        ...state.turn,
+        placements: [
+          { kind: "supply-point", row: 0, column: 0 },
+          { kind: "supply-point", row: 0, column: 0 },
+        ],
+      },
+    };
+
+    const resolved = resolvePointStates(repeatedTargetState);
+
+    expect(resolved.supplyPoints[0][0]).toEqual(
+      pointState(2, 1, "black"),
+    );
+    expect(pieceCountReads).toBe(2);
+  });
+
+  test("does not recalculate an unchanged point", () => {
+    const state = stateWithPointMatrices();
+    const unreachablePoint = pointState(3, 3);
+    const stateWithUnchangedUnreachablePoint: GameState = {
+      ...state,
+      objectives: [
+        [unreachablePoint, ...state.objectives[0].slice(1)],
+        ...state.objectives.slice(1),
+      ],
+    };
+
+    const resolved = resolvePointStates(stateWithUnchangedUnreachablePoint);
+
+    expect(resolved.objectives[0][0]).toBe(unreachablePoint);
+  });
+
+  test("returns the original matrices when the turn has no placements", () => {
+    const state = stateWithPointMatrices();
+    const stateWithoutPlacements: GameState = {
+      ...state,
+      turn: { ...state.turn, placements: [] },
+    };
+
+    const resolved = resolvePointStates(stateWithoutPlacements);
+
+    expect(resolved.supplyPoints).toBe(state.supplyPoints);
+    expect(resolved.objectives).toBe(state.objectives);
   });
 
   test("does not mutate point stacks or other GameState fields", () => {

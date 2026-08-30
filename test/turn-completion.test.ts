@@ -32,11 +32,13 @@ function pointState(
 }
 
 function placements(count: number): readonly PlacementTarget[] {
-  return Array.from({ length: count }, (_, column) => ({
-    kind: "supply-point" as const,
-    row: 0,
-    column,
-  }));
+  const targets: readonly PlacementTarget[] = [
+    { kind: "supply-point", row: 0, column: 0 },
+    { kind: "objective", row: 0, column: 1 },
+    { kind: "objective", row: 0, column: 2 },
+  ];
+
+  return targets.slice(0, count);
 }
 
 function completableState(activePlayer: Player): GameState {
@@ -97,12 +99,12 @@ describe("completeTurn", () => {
     expect(nextState.turn.activePlayer).toBe("white");
     expect(nextState.supplyPoints[0]).toEqual([
       pointState(2, 1, "black"),
-      pointState(1, 2, "white"),
-      pointState(1, 1),
-      pointState(3, 1, "black", true),
+      pointState(1, 2, "black"),
+      pointState(1, 1, "black"),
+      pointState(3, 1, "white"),
     ]);
     expect(nextState.objectives[0]).toEqual([
-      pointState(2, 1, "black"),
+      pointState(2, 1, "white"),
       pointState(1, 2, "white"),
       pointState(3, 2, "black", true),
     ]);
