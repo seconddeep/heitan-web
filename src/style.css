@@ -40,7 +40,8 @@ body {
   line-height: normal;
 }
 
-.app-navigation-item {
+.app-navigation-item,
+.undo-button {
   min-height: auto;
   padding: 0.25rem;
   border: 0;
@@ -78,6 +79,7 @@ body {
 }
 
 .app-navigation-item:focus-visible,
+.undo-button:focus-visible,
 .new-game-dialog select:focus-visible,
 .new-game-dialog button:focus-visible {
   outline: 3px solid rgb(60 115 150 / 45%);
@@ -87,6 +89,11 @@ body {
 .app-navigation-item:hover {
   color: #17221b;
   background: rgb(255 253 246 / 85%);
+}
+
+.undo-button:hover:not(:disabled) {
+  color: #17221b;
+  background: #f3f0e7;
 }
 
 .new-game-dialog {
@@ -148,7 +155,7 @@ body {
 
 .game-status-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 }
 
@@ -177,24 +184,7 @@ body {
 }
 
 .undo-button {
-  min-width: 5.5rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid #879087;
-  border-radius: 0.4rem;
-  color: #17221b;
-  background: #fffdf6;
-  font: inherit;
-  font-weight: 600;
   cursor: pointer;
-}
-
-.undo-button:hover:not(:disabled) {
-  background: #f3f0e7;
-}
-
-.undo-button:focus-visible {
-  outline: 3px solid rgb(60 115 150 / 45%);
-  outline-offset: 2px;
 }
 
 .undo-button:disabled {
@@ -310,10 +300,5 @@ body {
   .active-player-status,
   .placement-count {
     font-size: 0.9rem;
-  }
-
-  .undo-button {
-    min-width: 0;
-    padding: 0.35rem 0.6rem;
   }
 }
