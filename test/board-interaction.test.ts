@@ -22,6 +22,7 @@ import type { GameConfiguration } from "../src/game-configuration.ts";
 const configuration: GameConfiguration = {
   id: "test-3x3",
   label: "3 × 3",
+  category: "Prototype",
   cellsPerSide: 3,
   piecesPerPlayer: 12,
 };
@@ -669,6 +670,7 @@ describe("completed game flow", () => {
     const { container, render, session } = createRenderedSession(initialState, {
       id: "test-final-turn",
       label: "3 × 3",
+      category: "Prototype",
       cellsPerSide: 3,
       piecesPerPlayer: 3,
     });
@@ -765,6 +767,7 @@ describe("session lifecycle", () => {
       {
         id: "test-final-turn",
         label: "3 × 3",
+        category: "Prototype",
         cellsPerSide: 3,
         piecesPerPlayer: 3,
       },

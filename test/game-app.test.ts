@@ -104,13 +104,16 @@ describe("new-game flow", () => {
 
     expect(gameApp?.getConfiguration().id).toBe("4x4");
     expect(
-      root.querySelector<HTMLOptionElement>('#board-size option[value="4x4"]')
-        ?.textContent,
-    ).toBe("4 × 4 - 36 pieces");
-    expect(
-      root.querySelector<HTMLOptionElement>('#board-size option[value="6x6"]')
-        ?.textContent,
-    ).toBe("6 × 6 - 60 pieces");
+      Array.from(root.querySelectorAll<HTMLOptionElement>("#board-size option"))
+        .map((option) => option.textContent),
+    ).toEqual([
+      "3 × 3 - Prototype",
+      "4 × 4 - Compact",
+      "5 × 5 - Compact",
+      "6 × 6 - Analysis",
+      "7 × 7 - Standard",
+      "8 × 8 - Standard",
+    ]);
     expect(gameApp?.getBoardSession().getGameState().remainingPieces).toEqual({
       black: 36,
       white: 36,
@@ -151,8 +154,12 @@ describe("new-game flow", () => {
     const dialog = root.querySelector<HTMLDialogElement>(".new-game-dialog");
     const select = root.querySelector<HTMLSelectElement>("#board-size");
     expect(dialog?.open).toBe(true);
-    expect(dialog?.querySelector("h2")?.textContent).toBe("Start a new game");
-    expect(dialog?.querySelector("p")?.textContent).toBe("Choose a board size.");
+    expect(dialog?.querySelector("h2")?.textContent).toBe("Choose a board size");
+    expect(
+      Array.from(dialog?.querySelectorAll("p") ?? []).map(
+        (paragraph) => paragraph.textContent,
+      ),
+    ).toEqual(["4 × 4 and 7 × 7 are recommended."]);
     expect(dialog?.querySelector("label")).toBeNull();
     expect(select?.getAttribute("aria-label")).toBe("Board size");
     expect(select?.value).toBe("4x4");
@@ -237,6 +244,7 @@ describe("play analytics", () => {
     const configuration: GameConfiguration = {
       id: "test-3x3",
       label: "3 × 3",
+      category: "Prototype",
       cellsPerSide: 3,
       piecesPerPlayer: 3,
     };

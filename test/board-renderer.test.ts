@@ -21,6 +21,7 @@ import type { GameConfiguration } from "../src/game-configuration.ts";
 const boardConfiguration: GameConfiguration = {
   id: "test-3x3",
   label: "3 × 3",
+  category: "Prototype",
   cellsPerSide: 3,
   piecesPerPlayer: 12,
 };
@@ -28,6 +29,7 @@ const boardConfiguration: GameConfiguration = {
 const releaseBoardConfiguration: GameConfiguration = {
   id: "test-4x4",
   label: "4 × 4",
+  category: "Compact",
   cellsPerSide: 4,
   piecesPerPlayer: 36,
 };
