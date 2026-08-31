@@ -167,16 +167,36 @@ body {
 
 .game-status-current {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
 }
 
-.active-player-status,
-.placement-count {
-  color: #17221b;
-  font-size: 1.1rem;
-  font-weight: 700;
+.turn-indicator {
+  display: grid;
+  grid-template-columns: repeat(3, 1rem);
+  grid-template-rows: 1rem;
+  gap: 0.35rem;
+}
+
+.turn-indicator-slot {
+  display: block;
+}
+
+.turn-indicator-piece {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid #59635c;
+  border-radius: 50%;
+}
+
+.turn-indicator-piece.black-piece {
+  background: #17221b;
+}
+
+.turn-indicator-piece.white-piece {
+  background: #fffdf6;
 }
 
 .game-controls {
@@ -295,10 +315,5 @@ body {
 
   .game-status {
     font-size: 0.8rem;
-  }
-
-  .active-player-status,
-  .placement-count {
-    font-size: 0.9rem;
   }
 }
