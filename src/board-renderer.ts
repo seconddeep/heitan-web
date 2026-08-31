@@ -412,30 +412,11 @@ export function renderGameStatus(
   boardSize.classList.add("board-size-status");
   boardSize.textContent = configuration.label;
 
-  const activePlayer = document.createElement("span");
-  activePlayer.classList.add("active-player-status");
-
-  if (gameOver) {
-    activePlayer.textContent = "Game over";
-  } else {
-    const activePlayerName = capitalize(state.turn.activePlayer);
-    activePlayer.textContent = activePlayerName;
-    activePlayer.setAttribute("aria-label", `Active player: ${activePlayerName}`);
-  }
-
   const turnDisplay = deriveTurnDisplay(state, configuration);
 
   const turnCount = document.createElement("span");
   turnCount.classList.add("turn-count");
   turnCount.textContent = `Turn ${turnDisplay.currentTurn} / ${turnDisplay.totalTurns}`;
-
-  const placementCount = document.createElement("span");
-  placementCount.classList.add("placement-count");
-  placementCount.textContent = `${turnDisplay.placements} / ${placementsPerTurn}`;
-  placementCount.setAttribute(
-    "aria-label",
-    `Placements: ${turnDisplay.placements} / ${placementsPerTurn}`,
-  );
 
   const summary = document.createElement("div");
   summary.classList.add("game-status-summary");
@@ -447,7 +428,39 @@ export function renderGameStatus(
 
   const currentTurn = document.createElement("div");
   currentTurn.classList.add("game-status-current");
-  currentTurn.append(activePlayer, placementCount);
+
+  if (!gameOver) {
+    const activePlayerName = capitalize(state.turn.activePlayer);
+    const remainingPlacements = placementsPerTurn - turnDisplay.placements;
+    const indicator = document.createElement("div");
+    indicator.classList.add("turn-indicator");
+    indicator.dataset.player = state.turn.activePlayer;
+    indicator.setAttribute("role", "status");
+    indicator.setAttribute("aria-live", "polite");
+    indicator.setAttribute(
+      "aria-label",
+      `${activePlayerName} to move; ${remainingPlacements} of ${placementsPerTurn} pieces remaining this turn`,
+    );
+
+    for (let slotIndex = 0; slotIndex < placementsPerTurn; slotIndex += 1) {
+      const slot = document.createElement("span");
+      slot.classList.add("turn-indicator-slot");
+      slot.setAttribute("aria-hidden", "true");
+
+      if (slotIndex < remainingPlacements) {
+        const piece = document.createElement("span");
+        piece.classList.add(
+          "turn-indicator-piece",
+          `${state.turn.activePlayer}-piece`,
+        );
+        slot.append(piece);
+      }
+
+      indicator.append(slot);
+    }
+
+    currentTurn.append(indicator);
+  }
 
   status.append(header);
 

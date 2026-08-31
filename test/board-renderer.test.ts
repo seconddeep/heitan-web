@@ -580,12 +580,23 @@ test("renders turn and placement status from GameState and board configuration",
   };
   const status = renderGameStatus(state, releaseBoardConfiguration);
 
-  expect(status.querySelector(".active-player-status")?.textContent).toBe(
-    "White",
+  const indicator = status.querySelector<HTMLElement>(".turn-indicator");
+  expect(indicator?.dataset.player).toBe("white");
+  expect(indicator?.getAttribute("role")).toBe("status");
+  expect(indicator?.getAttribute("aria-live")).toBe("polite");
+  expect(indicator?.getAttribute("aria-label")).toBe(
+    "White to move; 1 of 3 pieces remaining this turn",
   );
+  expect(indicator?.querySelectorAll(".turn-indicator-slot")).toHaveLength(3);
+  expect(indicator?.querySelectorAll(".turn-indicator-piece")).toHaveLength(1);
+  expect(indicator?.querySelectorAll(".white-piece")).toHaveLength(1);
+  expect(indicator?.querySelector(".black-piece")).toBeNull();
   expect(
-    status.querySelector(".active-player-status")?.getAttribute("aria-label"),
-  ).toBe("Active player: White");
+    Array.from(
+      indicator?.querySelectorAll(".turn-indicator-slot") ?? [],
+      (slot) => slot.childElementCount,
+    ),
+  ).toEqual([1, 0, 0]);
   expect(status.querySelector(".board-size-status")?.textContent).toBe(
     "4 × 4",
   );
@@ -593,12 +604,8 @@ test("renders turn and placement status from GameState and board configuration",
     "Turn 7 / 12",
   );
   expect(status.querySelector(".remaining-pieces")).toBeNull();
-  expect(status.querySelector(".placement-count")?.textContent).toBe(
-    "2 / 3",
-  );
-  expect(
-    status.querySelector(".placement-count")?.getAttribute("aria-label"),
-  ).toBe("Placements: 2 / 3");
+  expect(status.querySelector(".active-player-status")).toBeNull();
+  expect(status.querySelector(".placement-count")).toBeNull();
   expect(Array.from(status.children).map((element) => element.className)).toEqual([
     "game-status-header",
     "game-status-current",
@@ -617,7 +624,7 @@ test("renders turn and placement status from GameState and board configuration",
     Array.from(
       status.querySelector(".game-status-current")?.children ?? [],
     ).map((element) => element.className),
-  ).toEqual(["active-player-status", "placement-count"]);
+  ).toEqual(["turn-indicator"]);
   expect(status.querySelector<HTMLButtonElement>(".undo-button")?.disabled).toBe(
     true,
   );
@@ -730,23 +737,21 @@ test("re-rendering replaces all stale board and status visuals", () => {
 
   renderGameState(container, firstState, {}, boardConfiguration);
   const originalSvg = container.querySelector("svg");
-  expect(container.querySelectorAll(".black-piece")).toHaveLength(2);
+  expect(container.querySelectorAll(".piece-layer .black-piece")).toHaveLength(2);
 
   renderGameState(container, secondState, {}, boardConfiguration);
 
   expect(container.querySelector("svg")).not.toBe(originalSvg);
   expect(container.querySelector(".black-piece")).toBeNull();
-  expect(container.querySelectorAll(".white-piece")).toHaveLength(1);
+  expect(container.querySelectorAll(".piece-layer .white-piece")).toHaveLength(1);
   expect(container.querySelector(".point-state")).toBeNull();
-  expect(container.querySelector(".active-player-status")?.textContent).toBe(
-    "White",
-  );
+  expect(container.querySelector(".turn-indicator")?.getAttribute("data-player"))
+    .toBe("white");
   expect(container.querySelector(".turn-count")?.textContent).toBe(
     "Turn 2 / 4",
   );
-  expect(container.querySelector(".placement-count")?.textContent).toBe(
-    "1 / 3",
-  );
+  expect(container.querySelectorAll(".turn-indicator-slot")).toHaveLength(3);
+  expect(container.querySelectorAll(".turn-indicator-piece")).toHaveLength(2);
   expect(container.querySelectorAll(".supply-point-target")).toHaveLength(16);
 });
 

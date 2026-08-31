@@ -133,9 +133,8 @@ describe("Supply Point interaction", () => {
     expect(container.querySelector(".turn-count")?.textContent).toBe(
       "Turn 1 / 4",
     );
-    expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "1 / 3",
-    );
+    expect(container.querySelectorAll(".turn-indicator-slot")).toHaveLength(3);
+    expect(container.querySelectorAll(".turn-indicator-piece")).toHaveLength(2);
   });
 
   test("delegated listener handles a second click after SVG replacement", () => {
@@ -188,12 +187,11 @@ describe("Supply Point interaction", () => {
     expect(currentState.turn.activePlayer).toBe("white");
     expect(currentState.supplyPoints[1][2].player).toBe("black");
     expect(currentState.supplyPoints[2][2].player).toBe("black");
-    expect(container.querySelector(".placement-count")?.textContent).toBe(
-      "0 / 3",
-    );
-    expect(container.querySelector(".active-player-status")?.textContent).toBe(
-      "White",
-    );
+    expect(container.querySelectorAll(".turn-indicator-piece")).toHaveLength(3);
+    expect(container.querySelectorAll(".white-piece.turn-indicator-piece"))
+      .toHaveLength(3);
+    expect(container.querySelector(".turn-indicator")?.getAttribute("aria-label"))
+      .toBe("White to move; 3 of 3 pieces remaining this turn");
     expect(
       container.querySelector(
         '.guide-indicator[data-placement-legal="true"][data-kind="supply-point"][data-row="1"][data-column="2"]',
@@ -410,6 +408,10 @@ describe("Objective interaction", () => {
       ),
     ).toBeNull();
     expect(container.querySelector('[data-placement-legal="true"]')).toBeNull();
+    expect(container.querySelectorAll(".turn-indicator-slot")).toHaveLength(3);
+    expect(container.querySelectorAll(".turn-indicator-piece")).toHaveLength(3);
+    expect(container.querySelector(".turn-indicator")?.getAttribute("aria-label"))
+      .toBe("Black to move; 3 of 3 pieces remaining this turn");
     expect(render).toHaveBeenCalledTimes(2);
 
     clickTarget(
