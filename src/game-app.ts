@@ -71,8 +71,8 @@ export function createGameApp(
       <div class="board-container"></div>
       <dialog class="new-game-dialog" aria-labelledby="new-game-title">
         <form class="new-game-form">
-          <h2 id="new-game-title">Start a new game</h2>
-          <p>Choose a board size.</p>
+          <h2 id="new-game-title">Choose a board size</h2>
+          <p>4 × 4 and 7 × 7 are recommended.</p>
           <select
             id="board-size"
             name="board-size"
@@ -114,7 +114,7 @@ export function createGameApp(
   for (const configuration of configurations) {
     const option = document.createElement("option");
     option.value = configuration.id;
-    option.textContent = `${configuration.label} - ${configuration.piecesPerPlayer} pieces`;
+    option.textContent = `${configuration.label} - ${configuration.category}`;
     select.append(option);
   }
 
