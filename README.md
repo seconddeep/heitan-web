@@ -1,6 +1,8 @@
 # heitan-web
 
-`heitan-web` is the web application for a browser-playable version of Heitan. This repository provides the frontend and deployment foundation for the game.
+**[Play Heitan in your browser](https://play.seconddeep.com/)**
+
+`heitan-web` contains the public browser-playable Heitan application, including its frontend, automated tests, and Firebase Hosting configuration.
 
 Heitan's canonical rules and Ludii implementation live in [`seconddeep/heitan-ludii`](https://github.com/seconddeep/heitan-ludii). Refer to that repository when implementing or changing game behavior instead of redefining the rules here.
 
@@ -24,7 +26,7 @@ Vite prints the local development URL and reloads the app as source files change
 
 ## Tests
 
-Run the focused domain-model tests with:
+Run the automated test suite with:
 
 ```sh
 npm test
@@ -115,7 +117,7 @@ firebase deploy --only hosting
 ```text
 public/          Static assets copied into the build
 src/             TypeScript, styles, and imported assets
-test/            Domain-model tests
+test/            Automated tests
 index.html       Vite HTML entry point
 firebase.json    Firebase Hosting configuration
 .firebaserc      Default Firebase project selection
